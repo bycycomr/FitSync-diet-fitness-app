@@ -9,156 +9,26 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   GiftedChat,
   IMessage,
-  Bubble,
-  InputToolbar,
-  Send,
-  Avatar,
   Day,
-  SystemMessage,
-  BubbleProps,
-  InputToolbarProps,
-  SendProps,
-  AvatarProps,
 } from 'react-native-gifted-chat';
-import { Ionicons } from '@expo/vector-icons';
 import { useUserStore } from '@/store/userStore';
 import { addChatMessage, fetchChatHistory } from '@/services/userService';
 import { sendChatMessage, type GeminiMessage } from '@/services/geminiService';
 import { parsePlanFromText } from '@/services/parseService';
 import { useTheme, ThemeColors } from '@/hooks/useTheme';
-
-const BOT_ID = 'fitsync-ai';
-
-const BOT_USER = {
-  _id: BOT_ID,
-  name: 'FitSync AI',
-  avatar: undefined as undefined,
-};
-
-function makeMsg(
-  text: string,
-  isBot: boolean,
-  uid: string,
-  displayName: string,
-  id?: string,
-): IMessage {
-  return {
-    _id: id ?? `${isBot ? 'b' : 'u'}_${Date.now()}_${Math.random()}`,
-    text,
-    createdAt: new Date(),
-    user: isBot
-      ? BOT_USER
-      : { _id: uid, name: displayName },
-  };
-}
-
-const WELCOME_MSG: IMessage = {
-  _id: '__welcome__',
-  text: 'Merhaba! 👋 Ben FitSync AI asistanın.\n\nBeslenme planın, antrenman programın veya kilo hedeflerin hakkında sana yardımcı olmaya hazırım. Ne öğrenmek istersin?',
-  createdAt: new Date(),
-  user: BOT_USER,
-};
-
-// ─── Özelleştirilmiş Bileşenler ──────────────────────────────────────────────
-
-function CustomBubble(props: BubbleProps<IMessage>) {
-  const { colors } = useTheme();
-  return (
-    <Bubble
-      {...props}
-      wrapperStyle={{
-        right: {
-          backgroundColor: colors.chatUserBubble,
-          borderRadius: 18,
-          borderBottomRightRadius: 4,
-          paddingHorizontal: 2,
-          paddingVertical: 1,
-          shadowColor: colors.chatUserBubble,
-          shadowOpacity: 0.25,
-          shadowOffset: { width: 0, height: 2 },
-          shadowRadius: 6,
-          elevation: 3,
-        },
-        left: {
-          backgroundColor: colors.chatBotBubble,
-          borderRadius: 18,
-          borderBottomLeftRadius: 4,
-          paddingHorizontal: 2,
-          paddingVertical: 1,
-          shadowColor: '#000',
-          shadowOpacity: 0.06,
-          shadowOffset: { width: 0, height: 1 },
-          shadowRadius: 4,
-          elevation: 2,
-        },
-      }}
-      textStyle={{
-        right: { color: colors.chatUserText, fontSize: 15, lineHeight: 22 },
-        left: { color: colors.chatBotText, fontSize: 15, lineHeight: 22 },
-      }}
-    />
-  );
-}
-
-function CustomInputToolbar(props: InputToolbarProps<IMessage>) {
-  const { colors } = useTheme();
-  const styles = getStyles(colors);
-
-  return (
-    <View style={styles.inputWrapper}>
-      <InputToolbar
-        {...props}
-        containerStyle={styles.inputToolbar}
-        primaryStyle={styles.inputPrimary}
-      />
-    </View>
-  );
-}
-
-function CustomSend(props: SendProps<IMessage>) {
-  const { colors } = useTheme();
-  const styles = getStyles(colors);
-  return (
-    <Send {...props} containerStyle={styles.sendContainer}>
-      <View style={styles.sendBtn}>
-        <Ionicons name="send" size={18} color="#FFF" />
-      </View>
-    </Send>
-  );
-}
-
-function CustomAvatar(props: AvatarProps<IMessage>) {
-  const { colors } = useTheme();
-  const styles = getStyles(colors);
-  return (
-    <View style={styles.botAvatar}>
-      <Ionicons name="fitness" size={16} color="#FFF" />
-    </View>
-  );
-}
-
-function TypingIndicator() {
-  const { colors } = useTheme();
-  const styles = getStyles(colors);
-  return (
-    <View style={styles.typingRow}>
-      <View style={styles.botAvatar}>
-        <Ionicons name="fitness" size={16} color="#FFF" />
-      </View>
-      <View style={styles.typingBubble}>
-        <View style={styles.dot} />
-        <View style={[styles.dot, styles.dotMid]} />
-        <View style={styles.dot} />
-      </View>
-    </View>
-  );
-}
+import { CustomBubble } from '@/components/chat/CustomBubble';
+import { CustomInputToolbar } from '@/components/chat/CustomInputToolbar';
+import { CustomSend } from '@/components/chat/CustomSend';
+import { CustomAvatar } from '@/components/chat/CustomAvatar';
+import { TypingIndicator } from '@/components/chat/TypingIndicator';
+import { BOT_ID, BOT_USER, WELCOME_MSG } from '@/components/chat/constants';
+import { makeMsg } from '@/components/chat/utils';
 
 // ─── Ana Ekran ────────────────────────────────────────────────────────────────
 
 export default function SohbetScreen() {
   const { colors } = useTheme();
-  const styles = getStyles(colors);
+  const styles = getScreenStyles(colors);
 
   const uid = useUserStore((s) => s.uid);
   const displayName = useUserStore((s) => s.displayName);
@@ -302,7 +172,7 @@ export default function SohbetScreen() {
 
 // ─── Stiller ─────────────────────────────────────────────────────────────────
 
-const getStyles = (colors: ThemeColors) => StyleSheet.create({
+const getScreenStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   messagesContainer: { backgroundColor: colors.background, paddingBottom: 4 },
 
@@ -323,30 +193,6 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
     opacity: 0.8,
   },
 
-  inputWrapper: {
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-    backgroundColor: colors.background,
-    borderTopWidth: 0,
-  },
-  inputToolbar: {
-    backgroundColor: colors.cardBackground,
-    borderTopWidth: 0,
-    borderTopColor: 'transparent',
-    borderRadius: 20,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 12,
-    marginHorizontal: 0,
-    marginVertical: 0,
-  },
-  inputPrimary: {
-    alignItems: 'center',
-  },
   textInput: {
     backgroundColor: colors.inputBg,
     borderRadius: 22,
@@ -358,72 +204,5 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
     marginTop: 0,
     marginBottom: 0,
     lineHeight: 20,
-  },
-
-  sendContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingRight: 4,
-    paddingBottom: 0,
-  },
-  sendBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: colors.primary,
-    shadowOpacity: 0.35,
-    shadowOffset: { width: 0, height: 3 },
-    shadowRadius: 6,
-    elevation: 4,
-  },
-
-  botAvatar: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 8,
-    shadowColor: colors.primary,
-    shadowOpacity: 0.25,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-    elevation: 3,
-  },
-
-  typingRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    paddingHorizontal: 12,
-    paddingBottom: 8,
-    gap: 8,
-  },
-  typingBubble: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.chatBotBubble,
-    borderRadius: 18,
-    borderBottomLeftRadius: 4,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    gap: 5,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowOffset: { width: 0, height: 1 },
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  dot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: colors.textMuted,
-  },
-  dotMid: {
-    backgroundColor: colors.textSecondary,
   },
 });
