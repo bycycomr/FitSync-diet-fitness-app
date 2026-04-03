@@ -4,33 +4,46 @@
  * Firestore CRUD işlemleri:
  *   - Kullanıcı profili okuma / güncelleme
  *   - Sohbet geçmişi yazma / okuma / silme
+ *   - Tamamlama kaydı yazma / okuma
  */
 
 import {
-  doc,
   getDoc,
   updateDoc,
   serverTimestamp,
-  collection,
   addDoc,
   getDocs,
   deleteDoc,
-  query,
-  orderBy,
-  limit,
-  Timestamp,
+  doc,
 } from 'firebase/firestore';
-import { db } from '@/firebaseConfig';
 import { useUserStore } from '@/store/userStore';
-import type { UserProfile, ChatMessage, ChatMessageInput, CompletionInput } from '@/types';
+import type { UserProfile, ChatMessage, ChatMessageInput, CompletionInput, DayStats } from '@/types';
 
-// ─── Kullanıcı Profili ────────────────────────────────────────────────────────
+// Re-export DayStats for use in other modules
+export type { DayStats };
+import {
+  getUserDoc,
+  getChatCollection,
+  getCompletionsCollection,
+  buildChatHistoryQuery,
+  buildCompletionsQuery,
+  getTodayKey,
+  getDateKey,
+  TR_DAYS,
+  buildDayStatsArray,
+} from './query/Firestore';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// KULLANICI PROFILI — Profile Okuma / Güncelleme
+// ═══════════════════════════════════════════════════════════════════════════════
 
 /**
  * Firestore'dan kullanıcı profilini okur ve Zustand store'u günceller.
+ * @param uid Kullanıcı UID'si
+ * @returns Kullanıcı profili veya null
  */
 export async function fetchUserProfile(uid: string): Promise<UserProfile | null> {
-  const snap = await getDoc(doc(db, 'users', uid));
+  const snap = await getDoc(getUserDoc(uid));
   if (!snap.exists()) return null;
 
   const data = snap.data() as UserProfile;
@@ -54,12 +67,14 @@ export async function fetchUserProfile(uid: string): Promise<UserProfile | null>
 
 /**
  * Kullanıcı profilini kısmi olarak günceller (Firestore + Zustand).
+ * @param uid Kullanıcı UID'si
+ * @param updates Güncellenecek alanlar
  */
 export async function updateUserProfile(
   uid: string,
   updates: Partial<Omit<UserProfile, 'uid' | 'createdAt'>>,
 ): Promise<void> {
-  await updateDoc(doc(db, 'users', uid), {
+  await updateDoc(getUserDoc(uid), {
     ...updates,
     updatedAt: serverTimestamp(),
   });
@@ -81,20 +96,21 @@ export async function updateUserProfile(
   }
 }
 
-// ─── Sohbet Geçmişi ──────────────────────────────────────────────────────────
-
-const chatCollection = (uid: string) =>
-  collection(db, 'users', uid, 'messages');
+// ═══════════════════════════════════════════════════════════════════════════════
+// SOHBET GEÇMİŞİ — Mesaj Yazma / Okuma / Silme
+// ═══════════════════════════════════════════════════════════════════════════════
 
 /**
  * Yeni bir sohbet mesajı Firestore'a ekler.
- * Dönen string değer eklenen dokümanın ID'sidir.
+ * @param uid Kullanıcı UID'si
+ * @param message Eklenecek mesaj
+ * @returns Eklenen dokümanın ID'si
  */
 export async function addChatMessage(
   uid: string,
   message: ChatMessageInput,
 ): Promise<string> {
-  const ref = await addDoc(chatCollection(uid), {
+  const ref = await addDoc(getChatCollection(uid), {
     ...message,
     createdAt: serverTimestamp(),
   });
@@ -102,18 +118,16 @@ export async function addChatMessage(
 }
 
 /**
- * Kullanıcının sohbet geçmişini kronolojik sırada getirir.
- * `maxMessages` ile sayfa boyutu sınırlanabilir (varsayılan: 50).
+ * Kullanıcının sohbet geçmişini kronolojik sırada getirir (yeniye göre eski).
+ * @param uid Kullanıcı UID'si
+ * @param maxMessages Maksimum mesaj sayısı (varsayılan: 50)
+ * @returns Sohbet mesajları array'i
  */
 export async function fetchChatHistory(
   uid: string,
   maxMessages = 50,
 ): Promise<ChatMessage[]> {
-  const q = query(
-    chatCollection(uid),
-    orderBy('createdAt', 'asc'),
-    limit(maxMessages),
-  );
+  const q = buildChatHistoryQuery(uid, maxMessages);
   const snap = await getDocs(q);
   return snap.docs.map((d) => ({
     id: d.id,
@@ -123,42 +137,41 @@ export async function fetchChatHistory(
 
 /**
  * Belirli bir mesajı Firestore'dan siler.
+ * @param uid Kullanıcı UID'si
+ * @param messageId Silinecek mesaj ID'si
  */
 export async function deleteChatMessage(uid: string, messageId: string): Promise<void> {
-  await deleteDoc(doc(db, 'users', uid, 'messages', messageId));
+  await deleteDoc(doc(getChatCollection(uid), messageId));
 }
 
 /**
  * Kullanıcının tüm sohbet geçmişini temizler.
+ * @param uid Kullanıcı UID'si
  */
 export async function clearChatHistory(uid: string): Promise<void> {
-  const snap = await getDocs(chatCollection(uid));
+  const snap = await getDocs(getChatCollection(uid));
   await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)));
 }
 
-// ─── Günlük Tamamlama Kaydı ──────────────────────────────────────────────────
-
-const completionsCollection = (uid: string) =>
-  collection(db, 'users', uid, 'completions');
-
-/** 'YYYY-MM-DD' formatında bugünün tarih anahtarını döndürür */
-function todayKey(): string {
-  return new Date().toISOString().slice(0, 10);
-}
+// ═══════════════════════════════════════════════════════════════════════════════
+// TAMAMLAMA KAYDI — Öğün & Antrenman Tamamlama Takibi
+// ═══════════════════════════════════════════════════════════════════════════════
 
 /**
  * Bir öğün veya egzersizin tamamlandığını Firestore'a kaydeder.
- * Aynı gün + label kombinasyonu zaten varsa sessizce tekrar kaydeder
- * (idempotent değil — "tekrar tamamla" senaryosu göz ardı edildi).
+ * @param uid Kullanıcı UID'si
+ * @param type Tamamlama türü ('meal' | 'workout')
+ * @param label Öğün / antrenman adı
+ * @returns Eklenen tamamlama kaydının ID'si
  */
 export async function addCompletion(
   uid: string,
   type: CompletionInput['type'],
   label: string,
 ): Promise<string> {
-  const ref = await addDoc(completionsCollection(uid), {
+  const ref = await addDoc(getCompletionsCollection(uid), {
     type,
-    date: todayKey(),
+    date: getTodayKey(),
     label,
     completedAt: serverTimestamp(),
   });
@@ -167,74 +180,45 @@ export async function addCompletion(
 
 /**
  * Bugüne ait tüm tamamlama kayıtlarını getirir.
- * `{ mealCount, workoutCount }` döndürür.
+ * @param uid Kullanıcı UID'si
+ * @returns Bugünkü öğün & antrenman tamamlama sayıları
  */
 export async function fetchTodayCompletions(
   uid: string,
 ): Promise<{ mealCount: number; workoutCount: number }> {
-  const q = query(
-    completionsCollection(uid),
-    orderBy('completedAt', 'desc'),
-    limit(100),
-  );
+  const q = buildCompletionsQuery(uid, 100);
   const snap = await getDocs(q);
-  const today = todayKey();
+  const today = getTodayKey();
   let mealCount = 0;
   let workoutCount = 0;
+
   snap.docs.forEach((d) => {
     const data = d.data() as { type: string; date: string };
     if (data.date !== today) return;
     if (data.type === 'meal') mealCount++;
     else if (data.type === 'workout') workoutCount++;
   });
+
   return { mealCount, workoutCount };
 }
 
 /**
- * Son 7 günün tamamlama özetini döndürür.
- * Dönüş: son 7 gün, eskiden yeniye sıralı array.
- * Her eleman: { date: 'YYYY-MM-DD', day: 'Pzt', mealCount, workoutCount }
+ * Son 7 günün tamamlama özetini döndürür (konuşma hafızası için).
+ * @param uid Kullanıcı UID'si
+ * @returns 7 günün detaylı istatistikleri (eskiden yeniye)
  */
-export interface DayStats {
-  date: string;
-  day: string;       // 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'
-  mealCount: number;
-  workoutCount: number;
-}
-
-const TR_DAYS = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
-
-function dateKey(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
-
 export async function fetchWeeklyCompletions(uid: string): Promise<DayStats[]> {
-  // Son 7 günün tarih anahtarlarını oluştur
-  const days: DayStats[] = [];
-  const now = new Date();
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(now);
-    d.setDate(now.getDate() - i);
-    days.push({
-      date: dateKey(d),
-      day: TR_DAYS[d.getDay()],
-      mealCount: 0,
-      workoutCount: 0,
-    });
-  }
+  // Son 7 günün tarih anahtarlarını oluştur (başlangıç değerleri 0)
+  const days = buildDayStatsArray(7);
 
   // Firestore'dan son 7 günün kayıtlarını çek
-  const q = query(
-    completionsCollection(uid),
-    orderBy('completedAt', 'desc'),
-    limit(200),
-  );
+  const q = buildCompletionsQuery(uid, 200);
   const snap = await getDocs(q);
   const oldest = days[0].date;
 
   snap.docs.forEach((doc) => {
     const data = doc.data() as { type: string; date: string };
-    if (data.date < oldest) return; // 7 günden eski
+    if (data.date < oldest) return; // 7 günden eski kayıtları atla
     const entry = days.find((d) => d.date === data.date);
     if (!entry) return;
     if (data.type === 'meal') entry.mealCount++;
