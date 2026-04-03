@@ -5,6 +5,7 @@
  *   - Kullanıcı profili okuma / güncelleme
  *   - Sohbet geçmişi yazma / okuma / silme
  *   - Tamamlama kaydı yazma / okuma
+ *   - Streak & Achievement takibi
  */
 
 import {
@@ -17,9 +18,9 @@ import {
   doc,
 } from 'firebase/firestore';
 import { useUserStore } from '@/store/userStore';
-import type { UserProfile, ChatMessage, ChatMessageInput, CompletionInput, DayStats } from '@/types';
+import type { UserProfile, ChatMessage, ChatMessageInput, CompletionInput, DayStats, Achievement, StreakData } from '@/types';
 
-// Re-export DayStats for use in other modules
+// Re-export for use in other modules
 export type { DayStats };
 import {
   getUserDoc,
@@ -226,4 +227,111 @@ export async function fetchWeeklyCompletions(uid: string): Promise<DayStats[]> {
   });
 
   return days;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// STREAK & ACHIEVEMENT — Gamification Takibi
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Kullanıcı profilinde streak verilerini başlatır/günceller.
+ * @param uid Kullanıcı UID'si
+ * @param initialStreak Başlangıç streak data'sı (genellikle {streakCount: 0, lastActiveDate: null, longestStreak: 0})
+ */
+export async function initializeStreakData(uid: string, initialStreak: StreakData): Promise<void> {
+  await updateDoc(getUserDoc(uid), {
+    streakCount: initialStreak.streakCount,
+    lastActiveDate: initialStreak.lastActiveDate,
+    longestStreak: initialStreak.longestStreak,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+/**
+ * Kullanıcının streak'ini hesapla ve güncelleyin.
+ * Eğer bugün tamamlanmış işlem varsa streakCount artar, lastActiveDate güncelleir.
+ * @param uid Kullanıcı UID'si
+ * @param lastStreak Mevcut streak data'sı
+ * @returns Yeni streak data'sı
+ */
+export async function calculateAndUpdateStreak(
+  uid: string,
+  lastStreak: StreakData,
+): Promise<StreakData> {
+  const today = getTodayKey();
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayKey = getDateKey(yesterday);
+
+  // Bugün tamamlanmış işlem var mı?
+  const todayCompletion = await fetchTodayCompletions(uid);
+  const hasActivityToday = todayCompletion.mealCount > 0 || todayCompletion.workoutCount > 0;
+
+  if (!hasActivityToday) {
+    // Hiç aktivite yoksa streak sıfırsız
+    return lastStreak;
+  }
+
+  let newStreakCount = lastStreak.streakCount;
+  let newLongestStreak = lastStreak.longestStreak;
+
+  // Eğer dün aktif idiyse streak devam ediyor
+  if (lastStreak.lastActiveDate === yesterdayKey) {
+    newStreakCount++;
+  } else if (lastStreak.lastActiveDate !== today) {
+    // Dün aktif değildiyse ve bugünü başlayan bir güne dönüş, streak sıfırdan başla
+    newStreakCount = 1;
+  }
+
+  // En uzun streak'i güncelle
+  newLongestStreak = Math.max(newStreakCount, lastStreak.longestStreak);
+
+  const newStreak: StreakData = {
+    streakCount: newStreakCount,
+    lastActiveDate: today,
+    longestStreak: newLongestStreak,
+  };
+
+  // Firestore'a yaz
+  await initializeStreakData(uid, newStreak);
+
+  // Zustand'ı güncelle
+  useUserStore.getState().setStreak(newStreak);
+
+  return newStreak;
+}
+
+/**
+ * Başarıları kontrol et ve yeni başarılar ekle.
+ * @param uid Kullanıcı UID'si
+ * @param streakData Mevcut streak data'sı
+ */
+export async function checkAndAwardAchievements(uid: string, streakData: StreakData): Promise<void> {
+  const store = useUserStore.getState();
+  const achievements: Achievement[] = [];
+
+  // Streak milestones
+  const streakMilestones = [
+    { count: 1, id: 'first_day', name: 'İlk Gün', emoji: '🌟' },
+    { count: 7, id: 'week_streak', name: '7 Günlük Streak', emoji: '🔥' },
+    { count: 30, id: 'month_streak', name: '30 Günlük Streak', emoji: '🏆' },
+    { count: 100, id: 'century', name: 'Yüzyıl', emoji: '💯' },
+  ];
+
+  streakMilestones.forEach((milestone) => {
+    if (streakData.streakCount >= milestone.count && !store.achievements.find((a) => a.id === milestone.id)) {
+      achievements.push({
+        id: milestone.id,
+        name: milestone.name,
+        emoji: milestone.emoji,
+        description: `${streakData.streakCount} gün arka arda aktifsin!`,
+        unlockedAt: serverTimestamp() as any,
+      });
+    }
+  });
+
+  // Başarıları Zustand'a ekle
+  achievements.forEach((achievement) => {
+    store.addAchievement(achievement);
+  });
 }

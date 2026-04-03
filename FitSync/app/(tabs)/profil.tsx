@@ -11,7 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useUserStore } from '@/store/userStore';
 import { logoutUser } from '@/services/authService';
-import { fetchTodayCompletions, fetchWeeklyCompletions } from '@/services/userService';
+import { fetchTodayCompletions, fetchWeeklyCompletions, calculateAndUpdateStreak, checkAndAwardAchievements } from '@/services/userService';
 import type { DayStats } from '@/services/userService';
 import type { Goal } from '@/types';
 import { useTheme, ThemeColors } from '@/hooks/useTheme';
@@ -21,6 +21,7 @@ import { NotificationsModal } from '@/components/modals/NotificationsModal';
 import { PrivacyModal } from '@/components/modals/PrivacyModal';
 import { HelpModal } from '@/components/modals/HelpModal';
 import { EditProfileModal } from '@/components/modals/EditProfileModal';
+import { StreakCard } from '@/components/StreakCard';
 
 // Renkler useTheme() hook'undan alınır
 // Bu sabitler yalnızca hook dışında (component render öncesi) kullanılır
@@ -370,6 +371,9 @@ export default function ProfilScreen() {
             <Text style={styles.editBtnText}>Profili Düzenle</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Streak & Başarılar */}
+        <StreakCard />
 
         {/* Günlük İlerleme */}
         {uid && <DailyProgressCard uid={uid} />}

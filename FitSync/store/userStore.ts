@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { MealPlan, WorkoutPlan, DayStats } from '@/types';
+import type { MealPlan, WorkoutPlan, DayStats, Achievement, StreakData } from '@/types';
 
 export type Goal = 'lose' | 'maintain' | 'gain';
 export type ThemeMode = 'light' | 'dark' | 'system';
@@ -28,6 +28,10 @@ export interface UserState {
   // Konuşma hafızası — son 5 günün istatistikleri
   last5DaysStats: DayStats[];
 
+  // Gamification — Streak & Achievements
+  streak: StreakData;
+  achievements: Achievement[];
+
   // Setterlar
   setProfile: (profile: Partial<Pick<UserState, 'displayName' | 'email' | 'uid'>>) => void;
   setBodyMetrics: (metrics: Partial<Pick<UserState, 'height' | 'weight' | 'targetWeight' | 'age' | 'goal'>>) => void;
@@ -36,6 +40,8 @@ export interface UserState {
   setActiveWorkoutPlan: (plan: WorkoutPlan | null) => void;
   setThemeMode: (mode: ThemeMode) => void;
   setLast5DaysStats: (stats: DayStats[]) => void;
+  setStreak: (data: StreakData) => void;
+  addAchievement: (achievement: Achievement) => void;
   reset: () => void;
 }
 
@@ -53,6 +59,8 @@ const INITIAL_STATE = {
   activeWorkoutPlan: null,
   themeMode: 'system' as ThemeMode,
   last5DaysStats: [],
+  streak: { streakCount: 0, lastActiveDate: null, longestStreak: 0 },
+  achievements: [],
 };
 
 export const useUserStore = create<UserState>((set, get) => ({
@@ -81,6 +89,13 @@ export const useUserStore = create<UserState>((set, get) => ({
   setActiveWorkoutPlan: (plan) => set({ activeWorkoutPlan: plan }),
   setThemeMode: (mode) => set({ themeMode: mode }),
   setLast5DaysStats: (stats) => set({ last5DaysStats: stats }),
+  setStreak: (data) => set({ streak: data }),
+  addAchievement: (achievement) =>
+    set((state) => ({
+      achievements: state.achievements.find((a) => a.id === achievement.id)
+        ? state.achievements
+        : [...state.achievements, achievement],
+    })),
 
   reset: () => set(INITIAL_STATE),
 }));

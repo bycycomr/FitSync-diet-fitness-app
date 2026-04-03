@@ -106,3 +106,19 @@ export interface DayStats {
   workoutCount: number;  // Bu gün tamamlanan antrenman sayısı
 }
 
+// ─── Streak & Başarılar ───────────────────────────────────────────────────────
+
+export interface Achievement {
+  id: string;            // 'first_meal', 'week_streak_7', vb.
+  name: string;          // "İlk Öğün", "7 Günlük Streak"
+  emoji: string;         // "🎯", "🔥", vb.
+  description: string;   // "Bir öğün tamamladığın için tebrikler!"
+  unlockedAt: Timestamp | null;
+}
+
+export interface StreakData {
+  streakCount: number;   // Kaç gün arka arda aktif
+  lastActiveDate: string | null; // 'YYYY-MM-DD' son aktif gün
+  longestStreak: number; // Şimdiye kadar en uzun streak
+}
+
