@@ -1,6 +1,6 @@
 # FitSync Haftalik Gelisim Raporu
 
-Son guncelleme: 2026-04-04
+Son guncelleme: 2026-04-04 (Hafta 10 başladı — Faz 10 Bug Fixes & Testing)
 
 ---
 
@@ -24,7 +24,7 @@ Kaynak Kod Etiketi: Ornek v0.5.0
 | Donem | Haftalar | Durum |
 |---|---:|---|
 | Vize Oncesi | 1-4 | ✅ Tamamlandı |
-| Final Oncesi | 5-10 | 🔄 Devam ediyor (Faz 9 — Growth & Retention) |
+| Final Oncesi | 5-10 | 🔄 Devam ediyor (Faz 10 — Bug Fixes & Testing) |
 
 ---
 
@@ -147,14 +147,20 @@ Riskler / Blokajlar: Hiçbir sorun — Faz 9 Growth & Retention başladı
 Video Linki: 9. Video
 
 ### Hafta 10
-Tarih Araligi: 11 - 17 Mayis 2026  
+Tarih Araligi: 1 - 4 Nisan 2026  
 Etiket: v1.0.0
 
 One Cikanlar:
-- [ ] Su içme takibi ve push notification reminder'ları (Görev 32)
-- [ ] Workout History ve Personal Records sistemi (Görev 33)
-- [ ] Birim testlerinin yazilmasi
+- [x] Su içme takibi ve push notification reminder'ları (Görev 32) ✅
+- [x] Workout History ve Personal Records sistemi (Görev 33) ✅
+- [x] Zustand infinite loop bug fix (useShallow pattern) — Faz 10.1 ✅
+- [x] notificationService SDK 53+ lazy loading fix — Faz 10.2 ✅
+- [~] Birim testlerinin yazilmasi (Jest infrastructure + ilk testler) — Faz 10.3 🔄
 - [ ] Mobil optimizasyon ve final gosterimi oncesi yayin hazirligi
 
-Riskler / Blokajlar: Görev 32 ve 33 beklemede — sıradaki hedefler  
+Riskler / Blokajlar: 
+- **ÇÖZÜLDÜ:** PlanlarScreen'de "Maximum update depth exceeded" sonsuz loop → Zustand useShallow fix
+- **ÇÖZÜLDÜ:** Expo Go SDK 53+ notificationService initialization error → Lazy loading pattern
+- **Devam:** Test suite (WorkoutHistoryCard, userService testleri sıradaki)
+
 Video Linki: 10. Video

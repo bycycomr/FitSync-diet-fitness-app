@@ -19,6 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import { useShallow } from 'zustand/react/shallow';
 
 import { useUserStore } from '@/store/userStore';
 import { MealPlanCard } from '@/components/MealPlanCard';
@@ -137,7 +138,7 @@ export default function PlanlarScreen() {
   const [workoutHistory, setWorkoutHistory] = useState<any[]>([]);
   const [personalRecords, setPersonalRecords] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
-  const userProfile = useUserStore((s) => ({
+  const userProfile = useUserStore(useShallow((s) => ({
     displayName: s.displayName,
     email: s.email,
     height: s.height,
@@ -146,7 +147,7 @@ export default function PlanlarScreen() {
     age: s.age,
     goal: s.goal,
     bmi: s.bmi,
-  }));
+  })));
 
   const goToChat = () => router.push('/(tabs)');
 

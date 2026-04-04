@@ -6,8 +6,8 @@
  * NOT: Expo Go'da SDK 53+'de push notifications çalışmıyor.
  * Development build veya EAS Build gerekli.
  *
- * SDK 53+ uyumluluğu: expo-notifications import'ı try-catch'te sarmalanıyor
- * Metro bundler'ın undefined module döndürmesini önlemek için mock fallback kullanılıyor.
+ * SDK 53+ uyumluluğu: Lazy loading pattern (module sadece çağrılınca yüklenir)
+ * Metro bundler'ın initialization hatasını önlemek için require() sadece ihtiyaç anında yapılır.
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -20,27 +20,42 @@ const NotificationMock = {
   scheduleNotificationAsync: async () => {},
 };
 
-let Notifications: any = NotificationMock;
+// Cache for loaded Notifications module (lazy loading)
+let CachedNotifications: any = null;
+let InitializationAttempted = false;
 
-// Try to import real notifications module
-try {
-  const RealNotifications = require('expo-notifications');
-  if (RealNotifications) {
-    Notifications = RealNotifications;
-    // Bildirim ayarlarını yapılandır
-    Notifications.setNotificationHandler({
-      handleNotification: async () => ({
-        shouldShowAlert: true,
-        shouldPlaySound: true,
-        shouldSetBadge: true,
-        shouldShowBanner: true,
-        shouldShowList: true,
-      } as any),
-    });
+/**
+ * Notifications modülünü lazy yükle (sadece ihtiyaç anında)
+ */
+function getNotifications() {
+  if (InitializationAttempted) {
+    return CachedNotifications || NotificationMock;
   }
-} catch (error) {
-  // Expo Go SDK 53+ — notifications module unavailable, using mock
-  console.log('Push notifications not available in this environment.');
+
+  InitializationAttempted = true;
+
+  try {
+    const RealNotifications = require('expo-notifications');
+    if (RealNotifications) {
+      // Bildirim ayarlarını yapılandır
+      RealNotifications.setNotificationHandler({
+        handleNotification: async () => ({
+          shouldShowAlert: true,
+          shouldPlaySound: true,
+          shouldSetBadge: true,
+          shouldShowBanner: true,
+          shouldShowList: true,
+        } as any),
+      });
+      CachedNotifications = RealNotifications;
+      return RealNotifications;
+    }
+  } catch (error) {
+    // Expo Go SDK 53+ — notifications module unavailable, using mock
+    console.log('Push notifications not available in this environment.');
+  }
+
+  return NotificationMock;
 }
 
 const WATER_REMINDER_KEY = 'water_reminder_enabled';
@@ -51,6 +66,7 @@ const WATER_REMINDER_INTERVAL_HOURS = 2; // Her 2 saatte bir hatırlatma
  */
 export async function requestNotificationPermissions(): Promise<boolean> {
   try {
+    const Notifications = getNotifications();
     const result = await Notifications.requestPermissionsAsync();
     return result?.status === 'granted';
   } catch (err) {
@@ -64,6 +80,8 @@ export async function requestNotificationPermissions(): Promise<boolean> {
  */
 export async function scheduleWaterReminder(): Promise<void> {
   try {
+    const Notifications = getNotifications();
+
     // Mevcut hatırlatmaları temizle
     if (Notifications.cancelAllScheduledNotificationsAsync) {
       await Notifications.cancelAllScheduledNotificationsAsync();
@@ -114,6 +132,7 @@ export async function scheduleWaterReminder(): Promise<void> {
  */
 export async function cancelWaterReminder(): Promise<void> {
   try {
+    const Notifications = getNotifications();
     if (Notifications.cancelAllScheduledNotificationsAsync) {
       await Notifications.cancelAllScheduledNotificationsAsync();
     }
@@ -141,6 +160,7 @@ export async function isWaterReminderEnabled(): Promise<boolean> {
  */
 export async function sendTestWaterNotification(): Promise<void> {
   try {
+    const Notifications = getNotifications();
     if (Notifications.scheduleNotificationAsync) {
       await Notifications.scheduleNotificationAsync({
         content: {
