@@ -35,6 +35,12 @@ export const getChatCollection = (uid: string): CollectionReference =>
 export const getCompletionsCollection = (uid: string): CollectionReference =>
   collection(db, 'users', uid, 'completions');
 
+/**
+ * Kullanıcıya ait water (su içme takibi) alt koleksiyonuna erişir
+ */
+export const getWaterCollection = (uid: string): CollectionReference =>
+  collection(db, 'users', uid, 'water');
+
 // ─── Sorgu Oluşturucu Fonksiyonlar ────────────────────────────────────────────
 
 /**
@@ -55,6 +61,16 @@ export const buildCompletionsQuery = (uid: string, maxCompletions = 100) =>
     getCompletionsCollection(uid),
     orderBy('completedAt', 'desc'),
     limit(maxCompletions),
+  );
+
+/**
+ * Su içme kayıtlarını tarih sırasında (yeniye göre eski) getiren sorguyu oluşturur
+ */
+export const buildWaterQuery = (uid: string, maxRecords = 100) =>
+  query(
+    getWaterCollection(uid),
+    orderBy('completedAt', 'desc'),
+    limit(maxRecords),
   );
 
 // ─── Tarih Yardımcıları ───────────────────────────────────────────────────────

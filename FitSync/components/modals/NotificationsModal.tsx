@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,12 @@ import {
 } from 'react-native';
 import { useTheme, ThemeColors } from '@/hooks/useTheme';
 import { MenuModal } from './MenuModal';
+import {
+  scheduleWaterReminder,
+  cancelWaterReminder,
+  isWaterReminderEnabled,
+  requestNotificationPermissions,
+} from '@/services/notificationService';
 
 export interface NotificationsModalProps {
   visible: boolean;
@@ -21,6 +27,14 @@ export function NotificationsModal({ visible, onClose }: NotificationsModalProps
   const [dailyReminder, setDailyReminder] = useState(false);
   const [mealReminder, setMealReminder] = useState(false);
   const [workoutAlert, setWorkoutAlert] = useState(false);
+  const [waterReminder, setWaterReminder] = useState(false);
+
+  // Modal açıldığında su hatırlatma durumunu kontrol et
+  useEffect(() => {
+    if (visible) {
+      isWaterReminderEnabled().then(setWaterReminder).catch(console.error);
+    }
+  }, [visible]);
 
   const toggleRow = (label: string, val: boolean, set: (v: boolean) => void) => (
     <TouchableOpacity
@@ -38,6 +52,27 @@ export function NotificationsModal({ visible, onClose }: NotificationsModalProps
     </TouchableOpacity>
   );
 
+  const handleWaterReminderToggle = async () => {
+    const newState = !waterReminder;
+    setWaterReminder(newState);
+
+    if (newState) {
+      // İzin iste ve hatırlatmayı başlat
+      const permitted = await requestNotificationPermissions();
+      if (permitted) {
+        await scheduleWaterReminder();
+        Alert.alert('💧 Su Hatırlatması', 'Günde 09:00 - 21:00 arası her 2 saatte su içme hatırlatması alacaksın.');
+      } else {
+        setWaterReminder(false);
+        Alert.alert('⚠️ İzin Reddedildi', 'Bildirim izni gerekli. Cihaz ayarlarından etkinleştir.');
+      }
+    } else {
+      // Hatırlatmayı iptal et
+      await cancelWaterReminder();
+      Alert.alert('💧 Su Hatırlatması', 'Su içme hatırlatmaları kapatıldı.');
+    }
+  };
+
   return (
     <MenuModal visible={visible} onClose={onClose} title="Bildirimler">
       <View style={ms.section}>
@@ -48,6 +83,17 @@ export function NotificationsModal({ visible, onClose }: NotificationsModalProps
         {toggleRow('Öğün Hatırlatıcıları', mealReminder, setMealReminder)}
         <View style={ms.divider} />
         {toggleRow('Antrenman Uyarıları', workoutAlert, setWorkoutAlert)}
+        <View style={ms.divider} />
+        <TouchableOpacity
+          style={ms.toggleRow}
+          onPress={handleWaterReminderToggle}
+          activeOpacity={0.8}
+        >
+          <Text style={ms.toggleLabel}>💧 Su İçme Hatırlatıcıları (Her 2 saat)</Text>
+          <View style={[ms.toggle, waterReminder && ms.toggleOn]}>
+            <View style={[ms.toggleThumb, waterReminder && ms.toggleThumbOn]} />
+          </View>
+        </TouchableOpacity>
       </View>
     </MenuModal>
   );

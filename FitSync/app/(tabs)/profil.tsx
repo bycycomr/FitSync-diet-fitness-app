@@ -22,6 +22,7 @@ import { PrivacyModal } from '@/components/modals/PrivacyModal';
 import { HelpModal } from '@/components/modals/HelpModal';
 import { EditProfileModal } from '@/components/modals/EditProfileModal';
 import { StreakCard } from '@/components/StreakCard';
+import { WaterCard } from '@/components/WaterCard';
 
 // Renkler useTheme() hook'undan alınır
 // Bu sabitler yalnızca hook dışında (component render öncesi) kullanılır
@@ -377,6 +378,9 @@ export default function ProfilScreen() {
 
         {/* Günlük İlerleme */}
         {uid && <DailyProgressCard uid={uid} />}
+
+        {/* Su İçme Takibi */}
+        {uid && <WaterCard uid={uid} />}
 
         {/* Haftalık Grafik */}
         {uid && <WeeklyChart uid={uid} />}

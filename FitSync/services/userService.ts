@@ -18,7 +18,7 @@ import {
   doc,
 } from 'firebase/firestore';
 import { useUserStore } from '@/store/userStore';
-import type { UserProfile, ChatMessage, ChatMessageInput, CompletionInput, DayStats, Achievement, StreakData } from '@/types';
+import type { UserProfile, ChatMessage, ChatMessageInput, CompletionInput, DayStats, Achievement, StreakData, WaterIntakeInput, WaterStats } from '@/types';
 
 // Re-export for use in other modules
 export type { DayStats };
@@ -26,8 +26,10 @@ import {
   getUserDoc,
   getChatCollection,
   getCompletionsCollection,
+  getWaterCollection,
   buildChatHistoryQuery,
   buildCompletionsQuery,
+  buildWaterQuery,
   getTodayKey,
   getDateKey,
   TR_DAYS,
@@ -334,4 +336,77 @@ export async function checkAndAwardAchievements(uid: string, streakData: StreakD
   achievements.forEach((achievement) => {
     store.addAchievement(achievement);
   });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SU İÇME TAKIBI — Su Bardağı Kaydı Yazma / Okuma
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Bir bardak su içildiğini Firestore'a kaydeder.
+ * @param uid Kullanıcı UID'si
+ * @returns Eklenen su kaydının ID'si
+ */
+export async function addWaterIntake(uid: string): Promise<string> {
+  const ref = await addDoc(getWaterCollection(uid), {
+    date: getTodayKey(),
+    glassesDrunk: 1,
+    completedAt: serverTimestamp(),
+  });
+  return ref.id;
+}
+
+/**
+ * Bugün içilen su bardaklarının toplam sayısını döndürür.
+ * @param uid Kullanıcı UID'si
+ * @returns Bugünün su istatistikleri (todayGlasses ve dailyGoal)
+ */
+export async function fetchTodayWaterIntake(uid: string): Promise<WaterStats> {
+  const q = buildWaterQuery(uid, 100);
+  const snap = await getDocs(q);
+  const today = getTodayKey();
+  let todayGlasses = 0;
+
+  snap.docs.forEach((d) => {
+    const data = d.data() as { date: string; glassesDrunk: number };
+    if (data.date === today) {
+      todayGlasses += data.glassesDrunk || 1;
+    }
+  });
+
+  return {
+    todayGlasses,
+    dailyGoal: 8, // Önerilen günlük su hedefi: 8 bardak
+  };
+}
+
+/**
+ * Son 7 günün su içme istatistiklerini döndürür.
+ * @param uid Kullanıcı UID'si
+ * @returns 7 günün su istatistikleri (tarih ve bardak sayısı)
+ */
+export async function fetchWeeklyWaterIntake(
+  uid: string,
+): Promise<Array<{ date: string; day: string; glasses: number }>> {
+  // Son 7 günün tarih anahtarlarını oluştur
+  const days = buildDayStatsArray(7).map((d) => ({
+    date: d.date,
+    day: d.day,
+    glasses: 0,
+  }));
+
+  // Firestore'dan son 7 günün su kayıtlarını çek
+  const q = buildWaterQuery(uid, 200);
+  const snap = await getDocs(q);
+  const oldest = days[0].date;
+
+  snap.docs.forEach((doc) => {
+    const data = doc.data() as { date: string; glassesDrunk: number };
+    if (data.date < oldest) return; // 7 günden eski kayıtları atla
+    const entry = days.find((d) => d.date === data.date);
+    if (!entry) return;
+    entry.glasses += data.glassesDrunk || 1;
+  });
+
+  return days;
 }

@@ -122,3 +122,19 @@ export interface StreakData {
   longestStreak: number; // Şimdiye kadar en uzun streak
 }
 
+// ─── Su İçme Takibi ───────────────────────────────────────────────────────
+
+export interface WaterIntake {
+  id: string;
+  date: string;          // 'YYYY-MM-DD' — gün anahtarı
+  glassesDrunk: number;  // Birbiri ardına içilen bardak sayısı
+  completedAt: Timestamp | null;
+}
+
+export type WaterIntakeInput = Omit<WaterIntake, 'id'>;
+
+export interface WaterStats {
+  todayGlasses: number;  // Bugün içilen bardak sayısı
+  dailyGoal: number;     // Günlük hedef bardak sayısı (önerilen: 8)
+}
+
