@@ -152,8 +152,9 @@ export default function PlanlarScreen() {
 
   // Antrenman geçmişi ve personal records'ları yükle
   useEffect(() => {
+    if (!uid) return;
+
     const loadHistory = async () => {
-      if (!uid) return;
       try {
         setLoadingHistory(true);
         const [history, records] = await Promise.all([
@@ -281,16 +282,8 @@ export default function PlanlarScreen() {
 
       await addWorkoutHistory(uid, activeWorkoutPlan.name, activeWorkoutPlan.durationMinutes, exercises);
 
-      // Personal records'ları güncelle
-      await updatePersonalRecords(uid, exercises);
-
-      // Geçmişi yenile
-      const [updatedHistory, updatedRecords] = await Promise.all([
-        fetchWorkoutHistory(uid, 50),
-        fetchPersonalRecords(uid),
-      ]);
-      setWorkoutHistory(updatedHistory);
-      setPersonalRecords(updatedRecords);
+      // Personal records'ları güncelle (fire-and-forget)
+      updatePersonalRecords(uid, exercises).catch(console.error);
     } catch (error) {
       console.error('Antrenman kaydetme hatası:', error);
     }
@@ -395,7 +388,7 @@ export default function PlanlarScreen() {
         )}
 
         {/* ── Antrenman Geçmişi ve Personal Records ────────────────────────── */}
-        {!loadingHistory && (
+        {!loadingHistory && (workoutHistory.length > 0 || personalRecords.length > 0) && (
           <WorkoutHistoryCard
             history={workoutHistory}
             personalRecords={personalRecords}
