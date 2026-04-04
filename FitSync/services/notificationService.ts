@@ -5,25 +5,42 @@
  *
  * NOT: Expo Go'da SDK 53+'de push notifications çalışmıyor.
  * Development build veya EAS Build gerekli.
+ *
+ * SDK 53+ uyumluluğu: expo-notifications import'ı try-catch'te sarmalanıyor
+ * Metro bundler'ın undefined module döndürmesini önlemek için mock fallback kullanılıyor.
  */
 
-import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Bildirim ayarlarını yapılandır (try-catch ile runtime guard)
+// Notification mock object (SDK 53+ Expo Go uyumluluğu)
+const NotificationMock = {
+  setNotificationHandler: () => {},
+  requestPermissionsAsync: async () => ({ status: 'denied' }),
+  cancelAllScheduledNotificationsAsync: async () => {},
+  scheduleNotificationAsync: async () => {},
+};
+
+let Notifications: any = NotificationMock;
+
+// Try to import real notifications module
 try {
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldPlaySound: true,
-      shouldSetBadge: true,
-      shouldShowBanner: true,
-      shouldShowList: true,
-    } as any),
-  });
+  const RealNotifications = require('expo-notifications');
+  if (RealNotifications) {
+    Notifications = RealNotifications;
+    // Bildirim ayarlarını yapılandır
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      } as any),
+    });
+  }
 } catch (error) {
-  // Expo Go SDK 53+ — notifications unavailable, silently ignore
-  console.log('Push notifications not available — running in Expo Go or unsupported environment.');
+  // Expo Go SDK 53+ — notifications module unavailable, using mock
+  console.log('Push notifications not available in this environment.');
 }
 
 const WATER_REMINDER_KEY = 'water_reminder_enabled';
@@ -34,10 +51,9 @@ const WATER_REMINDER_INTERVAL_HOURS = 2; // Her 2 saatte bir hatırlatma
  */
 export async function requestNotificationPermissions(): Promise<boolean> {
   try {
-    const { status } = await Notifications.requestPermissionsAsync();
-    return status === 'granted';
+    const result = await Notifications.requestPermissionsAsync();
+    return result?.status === 'granted';
   } catch (err) {
-    // Expo Go SDK 53+ — graceful fallback
     console.log('Notification permissions unavailable');
     return false;
   }
@@ -49,7 +65,9 @@ export async function requestNotificationPermissions(): Promise<boolean> {
 export async function scheduleWaterReminder(): Promise<void> {
   try {
     // Mevcut hatırlatmaları temizle
-    await Notifications.cancelAllScheduledNotificationsAsync();
+    if (Notifications.cancelAllScheduledNotificationsAsync) {
+      await Notifications.cancelAllScheduledNotificationsAsync();
+    }
 
     // Her 2 saatte bir bildirimi planla (09:00 - 21:00)
     const startHour = 9;
@@ -66,20 +84,22 @@ export async function scheduleWaterReminder(): Promise<void> {
         reminderTime.setDate(reminderTime.getDate() + 1);
       }
 
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: '💧 Su İçme Zamanı!',
-          body: 'Bir bardak su iç ve sağlıklı kal! Tamamladığında karttan ekle.',
-          sound: 'default',
-          badge: 1,
-        },
-        trigger: {
-          type: 'calendar' as any,
-          hour,
-          minute: 0,
-          repeats: true,
-        },
-      });
+      if (Notifications.scheduleNotificationAsync) {
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title: '💧 Su İçme Zamanı!',
+            body: 'Bir bardak su iç ve sağlıklı kal! Tamamladığında karttan ekle.',
+            sound: 'default',
+            badge: 1,
+          },
+          trigger: {
+            type: 'calendar' as any,
+            hour,
+            minute: 0,
+            repeats: true,
+          },
+        });
+      }
     }
 
     // Durumu kaydet
@@ -94,10 +114,11 @@ export async function scheduleWaterReminder(): Promise<void> {
  */
 export async function cancelWaterReminder(): Promise<void> {
   try {
-    await Notifications.cancelAllScheduledNotificationsAsync();
+    if (Notifications.cancelAllScheduledNotificationsAsync) {
+      await Notifications.cancelAllScheduledNotificationsAsync();
+    }
     await AsyncStorage.setItem(WATER_REMINDER_KEY, 'disabled');
   } catch (err) {
-    // Expo Go SDK 53+ — graceful fallback
     console.log('Could not cancel notifications');
   }
 }
@@ -120,16 +141,17 @@ export async function isWaterReminderEnabled(): Promise<boolean> {
  */
 export async function sendTestWaterNotification(): Promise<void> {
   try {
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: '💧 Su İçme Zamanı!',
-        body: 'Bu bir test bildirimidir. Bir bardak su iç!',
-        sound: 'default',
-      },
-      trigger: { type: 'timeInterval' as any, seconds: 1 },
-    });
+    if (Notifications.scheduleNotificationAsync) {
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: '💧 Su İçme Zamanı!',
+          body: 'Bu bir test bildirimidir. Bir bardak su iç!',
+          sound: 'default',
+        },
+        trigger: { type: 'timeInterval' as any, seconds: 1 },
+      });
+    }
   } catch (err) {
-    // Expo Go SDK 53+ — graceful fallback
     console.log('Test notification not available');
   }
 }
