@@ -18,7 +18,7 @@ import {
   doc,
 } from 'firebase/firestore';
 import { useUserStore } from '@/store/userStore';
-import type { UserProfile, ChatMessage, ChatMessageInput, CompletionInput, DayStats, Achievement, StreakData, WaterIntakeInput, WaterStats } from '@/types';
+import type { UserProfile, ChatMessage, ChatMessageInput, CompletionInput, DayStats, Achievement, StreakData, WaterIntakeInput, WaterStats, WorkoutHistoryInput, PersonalRecordInput, ExerciseDetail } from '@/types';
 
 // Re-export for use in other modules
 export type { DayStats };
@@ -27,9 +27,13 @@ import {
   getChatCollection,
   getCompletionsCollection,
   getWaterCollection,
+  getWorkoutHistoryCollection,
+  getPersonalRecordsCollection,
   buildChatHistoryQuery,
   buildCompletionsQuery,
   buildWaterQuery,
+  buildWorkoutHistoryQuery,
+  buildPersonalRecordsQuery,
   getTodayKey,
   getDateKey,
   TR_DAYS,
@@ -409,4 +413,135 @@ export async function fetchWeeklyWaterIntake(
   });
 
   return days;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ANTRENMAN GEÇMİŞİ & PERSONAL RECORDS — Antrenman Kaydı Yazma / Okuma
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Tamamlanan antrenmanı Firestore'a kaydeder (detaylı egzersiz listesi ile birlikte).
+ * @param uid Kullanıcı UID'si
+ * @param workoutName Antrenman adı ("Üst Vücut Antrenmanı" vb.)
+ * @param durationMinutes Antrenman süresi (dakika)
+ * @param exercises Detaylı egzersiz listesi
+ * @returns Eklenen antrenman kaydının ID'si
+ */
+export async function addWorkoutHistory(
+  uid: string,
+  workoutName: string,
+  durationMinutes: number,
+  exercises: ExerciseDetail[],
+): Promise<string> {
+  const ref = await addDoc(getWorkoutHistoryCollection(uid), {
+    date: getTodayKey(),
+    workoutName,
+    durationMinutes,
+    exerciseCount: exercises.length,
+    exercises,
+    completedAt: serverTimestamp(),
+  });
+  return ref.id;
+}
+
+/**
+ * Son N antrenmanı geçmişinden getirir.
+ * @param uid Kullanıcı UID'si
+ * @param maxRecords Maksimum antrenman kaydı sayısı (varsayılan: 50)
+ * @returns Antrenman geçmişi array'i
+ */
+export async function fetchWorkoutHistory(
+  uid: string,
+  maxRecords = 50,
+) {
+  const q = buildWorkoutHistoryQuery(uid, maxRecords);
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({
+    id: d.id,
+    ...d.data(),
+  }));
+}
+
+/**
+ * Egzersiz için personal record'u kontrol edip günceller.
+ * @param uid Kullanıcı UID'si
+ * @param exercises Tamamlanan egzersizler
+ */
+export async function updatePersonalRecords(
+  uid: string,
+  exercises: ExerciseDetail[],
+): Promise<void> {
+  // Mevcut PR'ları çek
+  const q = buildPersonalRecordsQuery(uid);
+  const snap = await getDocs(q);
+  const currentPRs = new Map<string, string>();
+
+  snap.docs.forEach((d) => {
+    const data = d.data() as { exerciseName: string; maxSetsReps: string };
+    currentPRs.set(data.exerciseName, data.maxSetsReps);
+  });
+
+  // Her egzersiz için PR kontrol et
+  for (const exercise of exercises) {
+    if (!exercise.sets || !exercise.reps) continue;
+
+    const newSetsReps = `${exercise.sets}×${exercise.reps}`;
+    const existingPR = currentPRs.get(exercise.name);
+
+    // PR'ı parse et ve karşılaştır
+    let shouldUpdate = false;
+    if (!existingPR) {
+      shouldUpdate = true; // İlk kez bu egzersiz yapılıyor
+    } else {
+      const [existingSets, existingReps] = existingPR.split('×').map(Number);
+      const newSets = exercise.sets;
+      const newReps = exercise.reps;
+
+      // Yeni set sayısı daha fazlaysa veya eşit set'lerde daha fazla rep yapıldıysa
+      if (newSets > existingSets || (newSets === existingSets && newReps > existingReps)) {
+        shouldUpdate = true;
+      }
+    }
+
+    if (shouldUpdate) {
+      // Eski PR'ı sil ve yenisini ekle
+      const oldPRDocs = snap.docs.filter(
+        (d) => (d.data() as { exerciseName: string }).exerciseName === exercise.name
+      );
+
+      // Eski PR varsa sil
+      for (const oldDoc of oldPRDocs) {
+        await deleteDoc(oldDoc.ref);
+      }
+
+      // Yeni PR'ı ekle
+      await addDoc(getPersonalRecordsCollection(uid), {
+        exerciseName: exercise.name,
+        maxSetsReps: newSetsReps,
+        date: getTodayKey(),
+        recordedAt: serverTimestamp(),
+      });
+    }
+  }
+}
+
+/**
+ * Kullanıcının tüm personal record'larını getirir.
+ * @param uid Kullanıcı UID'si
+ * @returns Personal records array'i (her egzersizin en iyi kaydı)
+ */
+export async function fetchPersonalRecords(uid: string) {
+  const q = buildPersonalRecordsQuery(uid);
+  const snap = await getDocs(q);
+
+  // Her egzersiz için en yeni PR'ı al (duplicate'leri filtrele)
+  const recordMap = new Map<string, any>();
+  snap.docs.forEach((d) => {
+    const data = d.data() as { exerciseName: string };
+    if (!recordMap.has(data.exerciseName)) {
+      recordMap.set(data.exerciseName, { id: d.id, ...data });
+    }
+  });
+
+  return Array.from(recordMap.values());
 }

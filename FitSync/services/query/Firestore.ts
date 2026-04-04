@@ -41,6 +41,18 @@ export const getCompletionsCollection = (uid: string): CollectionReference =>
 export const getWaterCollection = (uid: string): CollectionReference =>
   collection(db, 'users', uid, 'water');
 
+/**
+ * Kullanıcıya ait workoutHistory (antrenman geçmişi) alt koleksiyonuna erişir
+ */
+export const getWorkoutHistoryCollection = (uid: string): CollectionReference =>
+  collection(db, 'users', uid, 'workoutHistory');
+
+/**
+ * Kullanıcıya ait personalRecords (kişisel rekorlar) alt koleksiyonuna erişir
+ */
+export const getPersonalRecordsCollection = (uid: string): CollectionReference =>
+  collection(db, 'users', uid, 'personalRecords');
+
 // ─── Sorgu Oluşturucu Fonksiyonlar ────────────────────────────────────────────
 
 /**
@@ -71,6 +83,25 @@ export const buildWaterQuery = (uid: string, maxRecords = 100) =>
     getWaterCollection(uid),
     orderBy('completedAt', 'desc'),
     limit(maxRecords),
+  );
+
+/**
+ * Antrenman geçmişini tarih sırasında (yeniye göre eski) getiren sorguyu oluşturur
+ */
+export const buildWorkoutHistoryQuery = (uid: string, maxRecords = 100) =>
+  query(
+    getWorkoutHistoryCollection(uid),
+    orderBy('completedAt', 'desc'),
+    limit(maxRecords),
+  );
+
+/**
+ * Kişisel rekorları egzersiz adına göre getiren sorguyu oluşturur
+ */
+export const buildPersonalRecordsQuery = (uid: string) =>
+  query(
+    getPersonalRecordsCollection(uid),
+    orderBy('recordedAt', 'desc'),
   );
 
 // ─── Tarih Yardımcıları ───────────────────────────────────────────────────────

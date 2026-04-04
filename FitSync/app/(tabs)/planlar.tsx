@@ -5,7 +5,7 @@
  * - Tamamlanan öğün/egzersizler Firestore'a kaydedilir (Görev 11)
  */
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -23,7 +23,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { useUserStore } from '@/store/userStore';
 import { MealPlanCard } from '@/components/MealPlanCard';
 import { WorkoutPlanCard } from '@/components/WorkoutPlanCard';
-import { addCompletion, fetchWeeklyCompletions } from '@/services/userService';
+import { WorkoutHistoryCard } from '@/components/WorkoutHistoryCard';
+import { addCompletion, fetchWeeklyCompletions, addWorkoutHistory, fetchWorkoutHistory, fetchPersonalRecords, updatePersonalRecords } from '@/services/userService';
 import { useTheme, ThemeColors } from '@/hooks/useTheme';
 import { analyzeMealFromImage, createMealPlanFromAnalysis } from '@/services/visionService';
 import { generateWeeklyProgram } from '@/services/weeklyProgramService';
@@ -133,6 +134,9 @@ export default function PlanlarScreen() {
 
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isGeneratingWeekly, setIsGeneratingWeekly] = useState(false);
+  const [workoutHistory, setWorkoutHistory] = useState<any[]>([]);
+  const [personalRecords, setPersonalRecords] = useState<any[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
   const userProfile = useUserStore((s) => ({
     displayName: s.displayName,
     email: s.email,
@@ -145,6 +149,28 @@ export default function PlanlarScreen() {
   }));
 
   const goToChat = () => router.push('/(tabs)');
+
+  // Antrenman geçmişi ve personal records'ları yükle
+  useEffect(() => {
+    const loadHistory = async () => {
+      if (!uid) return;
+      try {
+        setLoadingHistory(true);
+        const [history, records] = await Promise.all([
+          fetchWorkoutHistory(uid, 50),
+          fetchPersonalRecords(uid),
+        ]);
+        setWorkoutHistory(history);
+        setPersonalRecords(records);
+      } catch (error) {
+        console.error('Antrenman geçmişi yükleme hatası:', error);
+      } finally {
+        setLoadingHistory(false);
+      }
+    };
+
+    loadHistory();
+  }, [uid]);
 
   const pickAndAnalyzeImage = useCallback(async (source: 'camera' | 'gallery') => {
     try {
@@ -238,9 +264,36 @@ export default function PlanlarScreen() {
   }, [uid]);
 
   /** Tüm antrenman tamamlandığında Firestore'a kaydet (fire-and-forget) */
-  const handleWorkoutComplete = useCallback(() => {
+  const handleWorkoutComplete = useCallback(async () => {
     if (!uid || !activeWorkoutPlan) return;
-    addCompletion(uid, 'workout', activeWorkoutPlan.name).catch(console.error);
+
+    try {
+      // Tamamlama kaydını ekle
+      await addCompletion(uid, 'workout', activeWorkoutPlan.name);
+
+      // Antrenman geçmişine kaydet (detaylı egzersiz bilgileri ile)
+      const exercises = activeWorkoutPlan.exercises.map((ex) => ({
+        name: ex.name,
+        sets: ex.sets,
+        reps: ex.reps,
+        durationSeconds: ex.durationSeconds,
+      }));
+
+      await addWorkoutHistory(uid, activeWorkoutPlan.name, activeWorkoutPlan.durationMinutes, exercises);
+
+      // Personal records'ları güncelle
+      await updatePersonalRecords(uid, exercises);
+
+      // Geçmişi yenile
+      const [updatedHistory, updatedRecords] = await Promise.all([
+        fetchWorkoutHistory(uid, 50),
+        fetchPersonalRecords(uid),
+      ]);
+      setWorkoutHistory(updatedHistory);
+      setPersonalRecords(updatedRecords);
+    } catch (error) {
+      console.error('Antrenman kaydetme hatası:', error);
+    }
   }, [uid, activeWorkoutPlan]);
 
   const PRIMARY = colors.primary;
@@ -338,6 +391,14 @@ export default function PlanlarScreen() {
             title="Antrenman Planı Yok"
             subtitle="Antrenman programı iste. Egzersizleri tamamladıkça checkbox işaretleyebilirsin."
             onPress={goToChat}
+          />
+        )}
+
+        {/* ── Antrenman Geçmişi ve Personal Records ────────────────────────── */}
+        {!loadingHistory && (
+          <WorkoutHistoryCard
+            history={workoutHistory}
+            personalRecords={personalRecords}
           />
         )}
 

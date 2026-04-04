@@ -138,3 +138,33 @@ export interface WaterStats {
   dailyGoal: number;     // Günlük hedef bardak sayısı (önerilen: 8)
 }
 
+// ─── Antrenman Geçmişi ve Personal Records ──────────────────────────────
+
+export interface ExerciseDetail {
+  name: string;          // Egzersiz adı: "Şınav", "Squat"
+  sets?: number;         // Tamamlanan set sayısı
+  reps?: number;         // Her set'te tamamlanan tekrar sayısı
+  durationSeconds?: number; // Egzersiz süresi (saniye cinsinden)
+}
+
+export interface WorkoutHistory {
+  id: string;
+  date: string;          // 'YYYY-MM-DD' — antrenman tarihi
+  workoutName: string;   // "Üst Vücut Antrenmanı"
+  durationMinutes: number; // Antrenman süresi (dakika)
+  exerciseCount: number; // Antrenman içindeki egzersiz sayısı
+  exercises: ExerciseDetail[]; // Detaylı egzersiz listesi
+  completedAt: Timestamp | null; // serverTimestamp()
+}
+
+export type WorkoutHistoryInput = Omit<WorkoutHistory, 'id'>;
+
+export interface PersonalRecord {
+  exerciseName: string;  // "Şınav", "Squat"
+  maxSetsReps: string;   // "5×15" (5 set × 15 tekrar)
+  date: string;          // 'YYYY-MM-DD' PR'ın yapıldığı tarih
+  recordedAt: Timestamp | null;
+}
+
+export type PersonalRecordInput = Omit<PersonalRecord, 'recordedAt'>;
+
