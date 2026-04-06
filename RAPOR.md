@@ -64,7 +64,7 @@ One Cikanlar:
 - [x] JSON parse servisi implementasyonu
 
 Riskler / Blokajlar: Hiçbir sorun yok — tüm görevler zamanında tamamlandı  
-Video Linki: 3. Video
+Video Linki: 3. Video https://youtube.com/shorts/bvlgRZ9qfNw?si=oxq-3lUueExeLLw4
 
 ### Hafta 4
 Tarih Araligi: 5 - 11 Nisan 2026  
