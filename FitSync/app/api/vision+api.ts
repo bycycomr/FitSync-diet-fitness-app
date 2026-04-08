@@ -1,5 +1,8 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
+const PRIMARY_MODEL  = 'gemini-2.0-flash';
+const FALLBACK_MODEL = 'gemini-1.5-flash';
+
 interface VisionRequest {
   imageBase64: string;
   mimeType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/heic';
@@ -20,6 +23,27 @@ interface VisionResponse {
   meal?: MealAnalysis;
   error?: string;
 }
+
+const VISION_PROMPT = `Sen beslenme analisti ve AI diyet koçusun. Kullanıcı tarafından gönderilen yemek fotoğrafını analiz ederek:
+
+1. Yemeğin türünü ve bileşenleri belirle
+2. Tahmini kalori miktarını hesapla (g cinsinden)
+3. Protein (g), Karbohidrat (g), Yağ (g) oranlarını tahmin et
+4. Tahmin güvenini (high/medium/low) değerlendir
+5. Kısa bir açıklama yaz
+
+ÇIKTI FORMATI (mutlaka JSON olacak):
+{
+  "mealName": "Yemeğin adı (Türkçe)",
+  "estimatedCalories": 450,
+  "protein": 25,
+  "carbs": 45,
+  "fat": 12,
+  "confidence": "high",
+  "description": "Kısa açıklama (Türkçe)"
+}
+
+Sadece JSON çıkart, başka birşey yazma.`;
 
 export async function POST(request: Request): Promise<Response> {
   try {
@@ -42,49 +66,30 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     const client = new GoogleGenerativeAI(apiKey);
-    const model = client.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
-    const systemPrompt = `Sen beslenme analisti ve AI diyet koçusun. Kullanıcı tarafından gönderilen yemek fotoğrafını analiz ederek:
+    const contents = [
+      {
+        role: 'user' as const,
+        parts: [
+          { text: VISION_PROMPT },
+          { inlineData: { mimeType, data: imageBase64 } },
+        ],
+      },
+    ];
 
-1. Yemeğin türünü ve bileşenleri belirle
-2. Tahmini kalori miktarını hesapla (g cinsinden)
-3. Protein (g), Karbohidrat (g), Yağ (g) oranlarını tahmin et
-4. Tahmin güvenini (high/medium/low) değerlendir
-5. Kısa bir açıklama yaz
+    async function callVision(modelName: string) {
+      return client.getGenerativeModel({ model: modelName }).generateContent({ contents });
+    }
 
-ÇIKTI FORMATI (mutlaka JSON olacak):
-{
-  "mealName": "Yemeğin adı (Türkçe)",
-  "estimatedCalories": 450,
-  "protein": 25,
-  "carbs": 45,
-  "fat": 12,
-  "confidence": "high",
-  "description": "Kısa açıklama (Türkçe)"
-}
+    let result;
+    try {
+      result = await callVision(PRIMARY_MODEL);
+    } catch {
+      console.warn(`[Vision API] ${PRIMARY_MODEL} başarısız, fallback: ${FALLBACK_MODEL}`);
+      result = await callVision(FALLBACK_MODEL);
+    }
 
-Sadece JSON çıkart, başka birşey yazma.`;
-
-    const response = await model.generateContent({
-      contents: [
-        {
-          role: 'user',
-          parts: [
-            {
-              text: systemPrompt,
-            },
-            {
-              inlineData: {
-                mimeType,
-                data: imageBase64,
-              },
-            },
-          ],
-        },
-      ],
-    });
-
-    const responseText = response.response.text().trim();
+    const responseText = result.response.text().trim();
     let cleanedText = responseText;
     if (cleanedText.startsWith('```json')) {
       cleanedText = cleanedText.replace(/^```json\n/, '').replace(/\n```$/, '');
@@ -94,7 +99,6 @@ Sadece JSON çıkart, başka birşey yazma.`;
 
     const meal = JSON.parse(cleanedText) as MealAnalysis;
 
-    // Validation
     if (!meal.mealName || !meal.estimatedCalories) {
       return Response.json(
         {
@@ -105,19 +109,13 @@ Sadece JSON çıkart, başka birşey yazma.`;
       );
     }
 
-    return Response.json({
-      success: true,
-      meal,
-    } as VisionResponse);
+    return Response.json({ success: true, meal } as VisionResponse);
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : 'Unknown error';
     console.error('Vision API error:', errorMsg);
 
     return Response.json(
-      {
-        success: false,
-        error: 'Fotoğraf analizi başarısız. Tekrar dene.',
-      } as VisionResponse,
+      { success: false, error: 'Fotoğraf analizi başarısız. Tekrar dene.' } as VisionResponse,
       { status: 500 }
     );
   }

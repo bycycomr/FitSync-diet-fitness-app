@@ -92,6 +92,11 @@ Kullanıcıya kişiselleştirilmiş beslenme ve fitness tavsiyeleri ver. Yanıtl
 - Motivasyonel ama gerçekçi ol`;
 }
 
+// ─── Model Sabitleri ─────────────────────────────────────────────────────────
+
+const PRIMARY_MODEL  = 'gemini-2.0-flash';
+const FALLBACK_MODEL = 'gemini-1.5-flash';
+
 // ─── Handler ──────────────────────────────────────────────────────────────────
 
 export async function POST(request: Request): Promise<Response> {
@@ -113,29 +118,36 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: 'Mesaj listesi boş olamaz.' }, { status: 400 });
   }
 
-  try {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash',
-      systemInstruction: buildSystemPrompt(userProfile, last5DaysStats),
-      safetySettings: [
-        { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-        { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-      ],
-    });
+  const systemInstruction = buildSystemPrompt(userProfile, last5DaysStats);
+  const safetySettings = [
+    { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+    { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+  ];
 
-    // GiftedChat history → Gemini history formatına çevir
-    const history = messages.slice(0, -1).map((m) => ({
-      role: m.role,
-      parts: [{ text: m.text }],
-    }));
+  // GiftedChat history → Gemini history formatına çevir
+  const history = messages.slice(0, -1).map((m) => ({
+    role: m.role,
+    parts: [{ text: m.text }],
+  }));
+  const lastMessage = messages[messages.length - 1];
 
-    const lastMessage = messages[messages.length - 1];
+  const genAI = new GoogleGenerativeAI(apiKey);
 
+  async function callModel(modelName: string): Promise<string> {
+    const model = genAI.getGenerativeModel({ model: modelName, systemInstruction, safetySettings });
     const chat = model.startChat({ history });
     const result = await chat.sendMessage(lastMessage.text);
-    const text = result.response.text();
+    return result.response.text();
+  }
 
+  try {
+    let text: string;
+    try {
+      text = await callModel(PRIMARY_MODEL);
+    } catch (primaryErr) {
+      console.warn(`[Chat API] ${PRIMARY_MODEL} başarısız, fallback: ${FALLBACK_MODEL}. Hata:`, primaryErr);
+      text = await callModel(FALLBACK_MODEL);
+    }
     return Response.json({ text });
   } catch (err) {
     console.error('[Gemini API Error]', err);

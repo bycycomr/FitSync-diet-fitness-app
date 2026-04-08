@@ -124,18 +124,29 @@ export async function POST(request: Request): Promise<Response> {
     ? MEAL_PARSE_PROMPT(text)
     : WORKOUT_PARSE_PROMPT(text);
 
+  const modelOptions = {
+    generationConfig: { responseMimeType: 'application/json' },
+    safetySettings: [
+      { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+      { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+    ],
+  };
+
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash',
-      generationConfig: { responseMimeType: 'application/json' },
-      safetySettings: [
-        { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
-        { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
-      ],
-    });
 
-    const result = await model.generateContent(prompt);
+    async function callParseModel(modelName: string) {
+      const model = genAI.getGenerativeModel({ model: modelName, ...modelOptions });
+      return model.generateContent(prompt);
+    }
+
+    let result;
+    try {
+      result = await callParseModel('gemini-2.0-flash');
+    } catch {
+      result = await callParseModel('gemini-1.5-flash');
+    }
+
     const rawJson = result.response.text().trim();
 
     if (planType === 'meal') {
