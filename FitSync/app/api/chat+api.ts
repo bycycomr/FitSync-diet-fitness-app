@@ -133,6 +133,43 @@ export async function POST(request: Request): Promise<Response> {
 
   const genAI = new GoogleGenerativeAI(apiKey);
 
+  // ─── Streaming modu (?stream=true) ───────────────────────────────────────────
+  const url = new URL(request.url);
+  if (url.searchParams.get('stream') === 'true') {
+    const encoder = new TextEncoder();
+    const model = genAI.getGenerativeModel({ model: PRIMARY_MODEL, systemInstruction, safetySettings });
+    const chat = model.startChat({ history });
+
+    const readable = new ReadableStream({
+      async start(controller) {
+        try {
+          const streamResult = await chat.sendMessageStream(lastMessage.text);
+          for await (const chunk of streamResult.stream) {
+            const chunkText = chunk.text();
+            if (chunkText) {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: chunkText })}\n\n`));
+            }
+          }
+          controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+          controller.close();
+        } catch (err) {
+          const errMsg = err instanceof Error ? err.message : 'Bilinmeyen hata';
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: errMsg })}\n\n`));
+          controller.close();
+        }
+      },
+    });
+
+    return new Response(readable, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'X-Content-Type-Options': 'nosniff',
+      },
+    });
+  }
+
+  // ─── Normal (non-streaming) mod ───────────────────────────────────────────────
   async function callModel(modelName: string): Promise<string> {
     const model = genAI.getGenerativeModel({ model: modelName, systemInstruction, safetySettings });
     const chat = model.startChat({ history });

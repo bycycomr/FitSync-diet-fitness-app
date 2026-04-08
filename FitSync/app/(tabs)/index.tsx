@@ -14,7 +14,7 @@ import {
 } from 'react-native-gifted-chat';
 import { useUserStore } from '@/store/userStore';
 import { addChatMessage, fetchChatHistory } from '@/services/userService';
-import { sendChatMessage, type GeminiMessage } from '@/services/geminiService';
+import { sendChatMessageStream, type GeminiMessage } from '@/services/geminiService';
 import { parsePlanFromText } from '@/services/parseService';
 import { useTheme, ThemeColors } from '@/hooks/useTheme';
 import { CustomBubble } from '@/components/chat/CustomBubble';
@@ -22,6 +22,7 @@ import { CustomInputToolbar } from '@/components/chat/CustomInputToolbar';
 import { CustomSend } from '@/components/chat/CustomSend';
 import { CustomAvatar } from '@/components/chat/CustomAvatar';
 import { TypingIndicator } from '@/components/chat/TypingIndicator';
+import { StreamingBubble } from '@/components/chat/StreamingBubble';
 import { BOT_ID, BOT_USER, WELCOME_MSG } from '@/components/chat/constants';
 import { makeMsg } from '@/components/chat/utils';
 
@@ -76,6 +77,7 @@ export default function SohbetScreen() {
 
   const [messages, setMessages] = useState<IMessage[]>([WELCOME_MSG]);
   const [isTyping, setIsTyping] = useState(false);
+  const [streamingText, setStreamingText] = useState('');
   const [historyLoading, setHistoryLoading] = useState(true);
 
   useEffect(() => {
@@ -120,11 +122,20 @@ export default function SohbetScreen() {
       geminiHistory.current.push({ role: 'user', text: userMsg.text });
 
       try {
-        const botText = await sendChatMessage(
+        const botText = await sendChatMessageStream(
           geminiHistory.current,
           { displayName: displayName || undefined, height, weight, targetWeight, bmi, goal, age },
           last5DaysStats,
+          (accumulated) => {
+            // İlk chunk geldiğinde typing göstergesini kaldır
+            if (isTyping) setIsTyping(false);
+            setStreamingText(accumulated);
+          },
         );
+
+        // Streaming bitti — balonu temizle ve gerçek mesajı ekle
+        setStreamingText('');
+        setIsTyping(false);
 
         // Gemini geçmişine bot yanıtını ekle
         geminiHistory.current.push({ role: 'model', text: botText });
@@ -150,6 +161,7 @@ export default function SohbetScreen() {
           }
         }).catch(console.error);
       } catch (err) {
+        setStreamingText('');
         const errText = err instanceof Error ? err.message : 'Bir hata oluştu. Lütfen tekrar dene.';
         const errMsg = makeMsg(errText, true, uid ?? BOT_ID, 'FitSync AI');
         setMessages((prev) => GiftedChat.append(prev, [errMsg]));
@@ -157,6 +169,7 @@ export default function SohbetScreen() {
         geminiHistory.current.pop();
       } finally {
         setIsTyping(false);
+        setStreamingText('');
       }
     },
     [uid, displayName, height, weight, targetWeight, bmi, goal, age, setActiveMealPlan, setActiveWorkoutPlan],
@@ -190,7 +203,11 @@ export default function SohbetScreen() {
             renderSend={(props) => <CustomSend {...props} />}
             renderAvatar={(props) => <CustomAvatar {...props} />}
             renderDay={(props) => <Day {...props} textStyle={{ color: colors.textSecondary }} />}
-            renderFooter={() => (isTyping ? <TypingIndicator /> : null)}
+            renderFooter={() => {
+              if (streamingText) return <StreamingBubble text={streamingText} />;
+              if (isTyping) return <TypingIndicator />;
+              return null;
+            }}
             messagesContainerStyle={styles.messagesContainer}
             textInputProps={{ placeholder: 'Bir şeyler sor...', style: styles.textInput }}
             bottomOffset={0}
