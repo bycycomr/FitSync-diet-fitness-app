@@ -2,18 +2,18 @@
  * app/api/chat+api.ts
  *
  * Expo API Route — sunucu tarafında çalışır.
- * Gemini API anahtarı istemciye hiçbir zaman gönderilmez.
+ * Groq API anahtarı istemciye hiçbir zaman gönderilmez.
  *
- * POST /api/chat
- * Body: { messages: GeminiMessage[], userProfile: UserProfileContext }
+ * POST /api/chat          → tam yanıt (JSON)
+ * POST /api/chat?stream=true → SSE akışı (text/event-stream)
  */
 
-import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
+import Groq from 'groq-sdk';
 
 // ─── Tipler ───────────────────────────────────────────────────────────────────
 
 interface GeminiMessage {
-  role: 'user' | 'model';
+  role: 'user' | 'model'; // istemci hâlâ Gemini formatı gönderiyor
   text: string;
 }
 
@@ -40,17 +40,21 @@ interface ChatRequestBody {
   last5DaysStats?: DayStats[];
 }
 
+// ─── Model ───────────────────────────────────────────────────────────────────
+
+const GROQ_MODEL = 'llama-3.3-70b-versatile';
+
 // ─── System Prompt ────────────────────────────────────────────────────────────
 
 function buildSystemPrompt(profile?: UserProfileContext, last5Days?: DayStats[]): string {
   const profileLines: string[] = [];
 
   if (profile?.displayName) profileLines.push(`- İsim: ${profile.displayName}`);
-  if (profile?.age) profileLines.push(`- Yaş: ${profile.age}`);
-  if (profile?.height) profileLines.push(`- Boy: ${profile.height} cm`);
-  if (profile?.weight) profileLines.push(`- Kilo: ${profile.weight} kg`);
+  if (profile?.age)          profileLines.push(`- Yaş: ${profile.age}`);
+  if (profile?.height)       profileLines.push(`- Boy: ${profile.height} cm`);
+  if (profile?.weight)       profileLines.push(`- Kilo: ${profile.weight} kg`);
   if (profile?.targetWeight) profileLines.push(`- Hedef Kilo: ${profile.targetWeight} kg`);
-  if (profile?.bmi) profileLines.push(`- BMI: ${profile.bmi}`);
+  if (profile?.bmi)          profileLines.push(`- BMI: ${profile.bmi}`);
   if (profile?.goal) {
     const goalMap = { lose: 'Kilo Vermek', maintain: 'Kiloyu Korumak', gain: 'Kilo Almak' };
     profileLines.push(`- Hedef: ${goalMap[profile.goal]}`);
@@ -60,13 +64,10 @@ function buildSystemPrompt(profile?: UserProfileContext, last5Days?: DayStats[])
     ? `\n\n## Kullanıcı Profili\n${profileLines.join('\n')}`
     : '';
 
-  // Son 5 günün hafızası
   let memorySection = '';
   if (last5Days && last5Days.length > 0) {
-    const memoryLines = last5Days.map(
-      d => `- ${d.day}: ${d.mealCount} öğün, ${d.workoutCount} antrenman`
-    );
-    memorySection = `\n\n## Son 5 Günün İlerleme\n${memoryLines.join('\n')}\n\nBu verilere dayanarak kullanıcının ilerlemesini takip et ve kişiselleştirilmiş tavsiyelerde bulun.`;
+    const lines = last5Days.map(d => `- ${d.day}: ${d.mealCount} öğün, ${d.workoutCount} antrenman`);
+    memorySection = `\n\n## Son 5 Günün İlerleme\n${lines.join('\n')}\n\nBu verilere dayanarak kullanıcının ilerlemesini takip et ve kişiselleştirilmiş tavsiyelerde bulun.`;
   }
 
   return `Sen FitSync'in yapay zeka asistanısın. Adın FitSync AI.${profileSection}${memorySection}
@@ -92,18 +93,26 @@ Kullanıcıya kişiselleştirilmiş beslenme ve fitness tavsiyeleri ver. Yanıtl
 - Motivasyonel ama gerçekçi ol`;
 }
 
-// ─── Model Sabitleri ─────────────────────────────────────────────────────────
+// ─── Yardımcı: Gemini formatı → Groq/OpenAI formatı ──────────────────────────
 
-// v1beta endpoint'te çalışan model adları (SDK 0.24.x varsayılanı v1beta)
-const PRIMARY_MODEL  = 'gemini-2.0-flash-exp';
-const FALLBACK_MODEL = 'gemini-1.5-flash-latest';
+type GroqMessage = { role: 'system' | 'user' | 'assistant'; content: string };
+
+function toGroqMessages(systemPrompt: string, messages: GeminiMessage[]): GroqMessage[] {
+  return [
+    { role: 'system', content: systemPrompt },
+    ...messages.map((m): GroqMessage => ({
+      role: m.role === 'model' ? 'assistant' : 'user',
+      content: m.text,
+    })),
+  ];
+}
 
 // ─── Handler ──────────────────────────────────────────────────────────────────
 
 export async function POST(request: Request): Promise<Response> {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
-    return Response.json({ error: 'Gemini API anahtarı yapılandırılmamış.' }, { status: 500 });
+    return Response.json({ error: 'Groq API anahtarı yapılandırılmamış.' }, { status: 500 });
   }
 
   let body: ChatRequestBody;
@@ -114,48 +123,42 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const { messages, userProfile, last5DaysStats } = body;
-
   if (!Array.isArray(messages) || messages.length === 0) {
     return Response.json({ error: 'Mesaj listesi boş olamaz.' }, { status: 400 });
   }
 
-  const systemInstruction = buildSystemPrompt(userProfile, last5DaysStats);
-  const safetySettings = [
-    { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-    { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-  ];
+  const groq = new Groq({ apiKey });
+  const groqMessages = toGroqMessages(
+    buildSystemPrompt(userProfile, last5DaysStats),
+    messages,
+  );
 
-  // GiftedChat history → Gemini history formatına çevir
-  const history = messages.slice(0, -1).map((m) => ({
-    role: m.role,
-    parts: [{ text: m.text }],
-  }));
-  const lastMessage = messages[messages.length - 1];
-
-  const genAI = new GoogleGenerativeAI(apiKey);
-
-  // ─── Streaming modu (?stream=true) ───────────────────────────────────────────
+  // ─── Streaming modu ────────────────────────────────────────────────────────
   const url = new URL(request.url);
   if (url.searchParams.get('stream') === 'true') {
     const encoder = new TextEncoder();
-    const model = genAI.getGenerativeModel({ model: PRIMARY_MODEL, systemInstruction, safetySettings });
-    const chat = model.startChat({ history });
 
     const readable = new ReadableStream({
       async start(controller) {
         try {
-          const streamResult = await chat.sendMessageStream(lastMessage.text);
-          for await (const chunk of streamResult.stream) {
-            const chunkText = chunk.text();
-            if (chunkText) {
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: chunkText })}\n\n`));
+          const stream = await groq.chat.completions.create({
+            model: GROQ_MODEL,
+            messages: groqMessages,
+            stream: true,
+            max_tokens: 1024,
+          });
+
+          for await (const chunk of stream) {
+            const text = chunk.choices[0]?.delta?.content ?? '';
+            if (text) {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text })}\n\n`));
             }
           }
           controller.enqueue(encoder.encode('data: [DONE]\n\n'));
           controller.close();
         } catch (err) {
-          const errMsg = err instanceof Error ? err.message : 'Bilinmeyen hata';
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: errMsg })}\n\n`));
+          const msg = err instanceof Error ? err.message : 'Bilinmeyen hata';
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: msg })}\n\n`));
           controller.close();
         }
       },
@@ -170,25 +173,18 @@ export async function POST(request: Request): Promise<Response> {
     });
   }
 
-  // ─── Normal (non-streaming) mod ───────────────────────────────────────────────
-  async function callModel(modelName: string): Promise<string> {
-    const model = genAI.getGenerativeModel({ model: modelName, systemInstruction, safetySettings });
-    const chat = model.startChat({ history });
-    const result = await chat.sendMessage(lastMessage.text);
-    return result.response.text();
-  }
-
+  // ─── Normal mod ────────────────────────────────────────────────────────────
   try {
-    let text: string;
-    try {
-      text = await callModel(PRIMARY_MODEL);
-    } catch (primaryErr) {
-      console.warn(`[Chat API] ${PRIMARY_MODEL} başarısız, fallback: ${FALLBACK_MODEL}. Hata:`, primaryErr);
-      text = await callModel(FALLBACK_MODEL);
-    }
+    const completion = await groq.chat.completions.create({
+      model: GROQ_MODEL,
+      messages: groqMessages,
+      max_tokens: 1024,
+    });
+
+    const text = completion.choices[0]?.message?.content ?? '';
     return Response.json({ text });
   } catch (err) {
-    console.error('[Gemini API Error]', err);
-    return Response.json({ error: 'Gemini API yanıt vermedi. Lütfen tekrar dene.' }, { status: 502 });
+    console.error('[Groq API Error]', err);
+    return Response.json({ error: 'Groq API yanıt vermedi. Lütfen tekrar dene.' }, { status: 502 });
   }
 }
