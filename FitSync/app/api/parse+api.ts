@@ -142,9 +142,9 @@ export async function POST(request: Request): Promise<Response> {
 
     let result;
     try {
-      result = await callParseModel('gemini-2.0-flash');
+      result = await callParseModel('gemini-2.0-flash-exp');
     } catch {
-      result = await callParseModel('gemini-1.5-flash');
+      result = await callParseModel('gemini-1.5-flash-latest');
     }
 
     const rawJson = result.response.text().trim();

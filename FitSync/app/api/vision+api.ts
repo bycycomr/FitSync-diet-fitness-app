@@ -1,7 +1,8 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const PRIMARY_MODEL  = 'gemini-2.0-flash';
-const FALLBACK_MODEL = 'gemini-1.5-flash';
+// v1beta endpoint'te çalışan model adları (SDK 0.24.x varsayılanı v1beta)
+const PRIMARY_MODEL  = 'gemini-2.0-flash-exp';
+const FALLBACK_MODEL = 'gemini-1.5-flash-latest';
 
 interface VisionRequest {
   imageBase64: string;
