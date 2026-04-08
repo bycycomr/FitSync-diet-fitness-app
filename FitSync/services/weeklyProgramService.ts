@@ -1,9 +1,24 @@
-import { UserProfile, MealPlan, WorkoutPlan } from '@/types';
+import { UserProfile, MealPlan, WorkoutPlan, Meal, Exercise } from '@/types';
 import { buildWeeklyProgramPrompt } from '@/constants/prompts';
 
 interface WeeklyProgram {
   mealPlans: MealPlan[];
   workoutPlans: WorkoutPlan[];
+}
+
+/** Gemini'den dönen haftalık program JSON'ının tek gün yapısı */
+interface WeeklyProgramDay {
+  dayName: string;
+  meals?: Meal[];
+  totalMealCalories?: number;
+  totalMealProtein?: number;
+  totalMealCarbs?: number;
+  totalMealFat?: number;
+  workout?: {
+    name: string;
+    durationMinutes: number;
+    exercises: Exercise[];
+  };
 }
 
 /**
@@ -52,15 +67,15 @@ export async function generateWeeklyProgram(
     const mealPlans: MealPlan[] = [];
     const workoutPlans: WorkoutPlan[] = [];
 
-    weeklyData.days.forEach((day: any) => {
+    weeklyData.days.forEach((day: WeeklyProgramDay) => {
       // Beslenme planı
       if (day.meals && day.meals.length > 0) {
         mealPlans.push({
           meals: day.meals,
-          totalCalories: day.totalMealCalories,
-          totalProtein: day.totalMealProtein,
-          totalCarbs: day.totalMealCarbs,
-          totalFat: day.totalMealFat,
+          totalCalories: day.totalMealCalories ?? 0,
+          totalProtein:  day.totalMealProtein  ?? 0,
+          totalCarbs:    day.totalMealCarbs    ?? 0,
+          totalFat:      day.totalMealFat      ?? 0,
         });
       }
 

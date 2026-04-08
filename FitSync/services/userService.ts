@@ -335,7 +335,7 @@ export async function checkAndAwardAchievements(uid: string, streakData: StreakD
         name: milestone.name,
         emoji: milestone.emoji,
         description: `${streakData.streakCount} gün arka arda aktifsin!`,
-        unlockedAt: serverTimestamp() as any,
+        unlockedAt: serverTimestamp(),
       });
     }
   });

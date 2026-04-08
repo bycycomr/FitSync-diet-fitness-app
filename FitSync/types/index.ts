@@ -1,4 +1,10 @@
-import { Timestamp } from 'firebase/firestore';
+import { Timestamp, FieldValue } from 'firebase/firestore';
+
+/**
+ * Firestore'a yazılırken serverTimestamp() döner (FieldValue),
+ * okunurken Timestamp döner. İkisini birden kabul etmek için:
+ */
+export type FirestoreTimestamp = Timestamp | FieldValue | null;
 
 // ─── Kullanıcı ────────────────────────────────────────────────────────────────
 
@@ -113,7 +119,8 @@ export interface Achievement {
   name: string;          // "İlk Öğün", "7 Günlük Streak"
   emoji: string;         // "🎯", "🔥", vb.
   description: string;   // "Bir öğün tamamladığın için tebrikler!"
-  unlockedAt: Timestamp | null;
+  /** Firestore'a yazılırken FieldValue (serverTimestamp), okunurken Timestamp */
+  unlockedAt: FirestoreTimestamp;
 }
 
 export interface StreakData {
