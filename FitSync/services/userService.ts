@@ -18,7 +18,7 @@ import {
   doc,
 } from 'firebase/firestore';
 import { useUserStore } from '@/store/userStore';
-import type { UserProfile, ChatMessage, ChatMessageInput, CompletionInput, DayStats, Achievement, StreakData, WaterIntakeInput, WaterStats, WorkoutHistoryInput, PersonalRecordInput, ExerciseDetail } from '@/types';
+import type { UserProfile, ChatMessage, ChatMessageInput, CompletionInput, DayStats, Achievement, StreakData, WaterIntakeInput, WaterStats, WorkoutHistory, WorkoutHistoryInput, PersonalRecord, PersonalRecordInput, ExerciseDetail, WeightLog, WeightLogInput } from '@/types';
 
 // Re-export for use in other modules
 export type { DayStats };
@@ -29,11 +29,13 @@ import {
   getWaterCollection,
   getWorkoutHistoryCollection,
   getPersonalRecordsCollection,
+  getWeightLogCollection,
   buildChatHistoryQuery,
   buildCompletionsQuery,
   buildWaterQuery,
   buildWorkoutHistoryQuery,
   buildPersonalRecordsQuery,
+  buildWeightLogQuery,
   getTodayKey,
   getDateKey,
   TR_DAYS,
@@ -453,12 +455,12 @@ export async function addWorkoutHistory(
 export async function fetchWorkoutHistory(
   uid: string,
   maxRecords = 50,
-) {
+): Promise<WorkoutHistory[]> {
   const q = buildWorkoutHistoryQuery(uid, maxRecords);
   const snap = await getDocs(q);
   return snap.docs.map((d) => ({
     id: d.id,
-    ...d.data(),
+    ...(d.data() as Omit<WorkoutHistory, 'id'>),
   }));
 }
 
@@ -504,17 +506,13 @@ export async function updatePersonalRecords(
     }
 
     if (shouldUpdate) {
-      // Eski PR'ı sil ve yenisini ekle
+      // Eski PR'ları paralel sil, ardından yenisini ekle
       const oldPRDocs = snap.docs.filter(
         (d) => (d.data() as { exerciseName: string }).exerciseName === exercise.name
       );
 
-      // Eski PR varsa sil
-      for (const oldDoc of oldPRDocs) {
-        await deleteDoc(oldDoc.ref);
-      }
+      await Promise.all(oldPRDocs.map((oldDoc) => deleteDoc(oldDoc.ref)));
 
-      // Yeni PR'ı ekle
       await addDoc(getPersonalRecordsCollection(uid), {
         exerciseName: exercise.name,
         maxSetsReps: newSetsReps,
@@ -530,18 +528,66 @@ export async function updatePersonalRecords(
  * @param uid Kullanıcı UID'si
  * @returns Personal records array'i (her egzersizin en iyi kaydı)
  */
-export async function fetchPersonalRecords(uid: string) {
+export async function fetchPersonalRecords(uid: string): Promise<PersonalRecord[]> {
   const q = buildPersonalRecordsQuery(uid);
   const snap = await getDocs(q);
 
   // Her egzersiz için en yeni PR'ı al (duplicate'leri filtrele)
-  const recordMap = new Map<string, any>();
+  const recordMap = new Map<string, PersonalRecord>();
   snap.docs.forEach((d) => {
-    const data = d.data() as { exerciseName: string };
+    const data = d.data() as PersonalRecord;
     if (!recordMap.has(data.exerciseName)) {
-      recordMap.set(data.exerciseName, { id: d.id, ...data });
+      recordMap.set(data.exerciseName, data);
     }
   });
 
   return Array.from(recordMap.values());
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// KİLO TAKİP GÜNLÜĞÜ — Kilo Kaydı Yazma / Okuma
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Kullanıcının günlük kilo kaydını Firestore'a ekler.
+ * Aynı güne ait önceki kayıt varsa üzerine güncelleme yapar.
+ * @param uid Kullanıcı UID'si
+ * @param weight Kaydedilecek kilo (kg)
+ * @returns Eklenen / güncellenen kaydın ID'si
+ */
+export async function addWeightLog(uid: string, weight: number): Promise<string> {
+  const today = getTodayKey();
+
+  // Bugüne ait mevcut kayıt var mı kontrol et
+  const q = buildWeightLogQuery(uid, 50);
+  const snap = await getDocs(q);
+  const todayDoc = snap.docs.find((d) => (d.data() as { date: string }).date === today);
+
+  if (todayDoc) {
+    // Aynı güne ait kayıt varsa güncelle
+    await updateDoc(todayDoc.ref, { weight, recordedAt: serverTimestamp() });
+    return todayDoc.id;
+  }
+
+  // Yeni kayıt ekle
+  const ref = await addDoc(getWeightLogCollection(uid), {
+    date: today,
+    weight,
+    recordedAt: serverTimestamp(),
+  });
+  return ref.id;
+}
+
+/**
+ * Kullanıcının kilo geçmişini getirir (en yeniden eskiye sıralı).
+ * @param uid Kullanıcı UID'si
+ * @param maxRecords Maksimum kayıt sayısı (varsayılan: 30)
+ * @returns Kilo log array'i
+ */
+export async function fetchWeightLog(uid: string, maxRecords = 30): Promise<WeightLog[]> {
+  const q = buildWeightLogQuery(uid, maxRecords);
+  const snap = await getDocs(q);
+  return snap.docs
+    .map((d) => ({ id: d.id, ...(d.data() as Omit<WeightLog, 'id'>) }))
+    .sort((a, b) => a.date.localeCompare(b.date)); // eskiden yeniye sırala (grafik için)
 }

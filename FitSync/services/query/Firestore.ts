@@ -53,6 +53,12 @@ export const getWorkoutHistoryCollection = (uid: string): CollectionReference =>
 export const getPersonalRecordsCollection = (uid: string): CollectionReference =>
   collection(db, 'users', uid, 'personalRecords');
 
+/**
+ * Kullanıcıya ait weightLog (kilo takip günlüğü) alt koleksiyonuna erişir
+ */
+export const getWeightLogCollection = (uid: string): CollectionReference =>
+  collection(db, 'users', uid, 'weightLog');
+
 // ─── Sorgu Oluşturucu Fonksiyonlar ────────────────────────────────────────────
 
 /**
@@ -102,6 +108,16 @@ export const buildPersonalRecordsQuery = (uid: string) =>
   query(
     getPersonalRecordsCollection(uid),
     orderBy('recordedAt', 'desc'),
+  );
+
+/**
+ * Kilo takip kayıtlarını tarih sırasında (yeniye göre eski) getiren sorguyu oluşturur
+ */
+export const buildWeightLogQuery = (uid: string, maxRecords = 30) =>
+  query(
+    getWeightLogCollection(uid),
+    orderBy('recordedAt', 'desc'),
+    limit(maxRecords),
   );
 
 // ─── Tarih Yardımcıları ───────────────────────────────────────────────────────

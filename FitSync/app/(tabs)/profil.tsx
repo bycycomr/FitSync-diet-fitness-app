@@ -23,6 +23,7 @@ import { HelpModal } from '@/components/modals/HelpModal';
 import { EditProfileModal } from '@/components/modals/EditProfileModal';
 import { StreakCard } from '@/components/StreakCard';
 import { WaterCard } from '@/components/WaterCard';
+import { WeightProgressChart } from '@/components/WeightProgressChart';
 
 // Renkler useTheme() hook'undan alınır
 // Bu sabitler yalnızca hook dışında (component render öncesi) kullanılır
@@ -381,6 +382,9 @@ export default function ProfilScreen() {
 
         {/* Su İçme Takibi */}
         {uid && <WaterCard uid={uid} />}
+
+        {/* Kilo Takip Grafiği */}
+        {uid && <WeightProgressChart uid={uid} />}
 
         {/* Haftalık Grafik */}
         {uid && <WeeklyChart uid={uid} />}

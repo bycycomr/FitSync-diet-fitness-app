@@ -168,3 +168,14 @@ export interface PersonalRecord {
 
 export type PersonalRecordInput = Omit<PersonalRecord, 'recordedAt'>;
 
+// ─── Kilo Takip Günlüğü ───────────────────────────────────────────────────────
+
+export interface WeightLog {
+  id: string;
+  date: string;          // 'YYYY-MM-DD' — kayıt tarihi
+  weight: number;        // kg cinsinden kilo
+  recordedAt: Timestamp | null;
+}
+
+export type WeightLogInput = Omit<WeightLog, 'id'>;
+
