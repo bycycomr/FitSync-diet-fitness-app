@@ -3,9 +3,10 @@ import {
   View,
   StyleSheet,
   Platform,
+  Keyboard,
   KeyboardAvoidingView,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   GiftedChat,
   IMessage,
@@ -26,9 +27,37 @@ import { makeMsg } from '@/components/chat/utils';
 
 // ─── Ana Ekran ────────────────────────────────────────────────────────────────
 
+// _layout.tsx'te tanımlanan gerçek tab bar yükseklikleri
+const TAB_BAR_IOS     = 88;
+const TAB_BAR_ANDROID = 64;
+
 export default function SohbetScreen() {
   const { colors } = useTheme();
   const styles = getScreenStyles(colors);
+  const insets = useSafeAreaInsets();
+
+  // Android: Keyboard API ile doğrudan klavye yüksekliğini dinle
+  const [androidKbPadding, setAndroidKbPadding] = useState(0);
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+
+    const show = Keyboard.addListener('keyboardDidShow', (e) => {
+      const overlap = Math.max(
+        e.endCoordinates.height - TAB_BAR_ANDROID - insets.bottom,
+        0,
+      );
+      setAndroidKbPadding(overlap);
+    });
+    const hide = Keyboard.addListener('keyboardDidHide', () => {
+      setAndroidKbPadding(0);
+    });
+
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, [insets.bottom]);
 
   const uid = useUserStore((s) => s.uid);
   const displayName = useUserStore((s) => s.displayName);
@@ -135,36 +164,39 @@ export default function SohbetScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {/* iOS: KAV ile padding, Android: manual paddingBottom */}
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        keyboardVerticalOffset={TAB_BAR_IOS}
       >
-        {historyLoading && (
-          <View style={styles.historyLoader}>
-            <View style={styles.historyLoaderBar} />
-            <View style={[styles.historyLoaderBar, { width: '60%' }]} />
-            <View style={[styles.historyLoaderBar, { width: '80%' }]} />
-          </View>
-        )}
-        <GiftedChat
-          messages={messages}
-          onSend={onSend}
-          user={{ _id: uid ?? 'guest', name: displayName || 'Sen' }}
-          locale="tr"
-          isSendButtonAlwaysVisible
-          isUserAvatarVisible={false}
-          renderBubble={(props) => <CustomBubble {...props} />}
-          renderInputToolbar={(props) => <CustomInputToolbar {...props} />}
-          renderSend={(props) => <CustomSend {...props} />}
-          renderAvatar={(props) => <CustomAvatar {...props} />}
-          renderDay={(props) => <Day {...props} textStyle={{ color: colors.textSecondary }} />}
-          renderFooter={() => (isTyping ? <TypingIndicator /> : null)}
-          messagesContainerStyle={styles.messagesContainer}
-          textInputProps={{ placeholder: 'Bir şeyler sor...', style: styles.textInput }}
-          bottomOffset={Platform.OS === 'ios' ? 90 : 60}
-          keyboardShouldPersistTaps="never"
-        />
+        <View style={[{ flex: 1 }, Platform.OS === 'android' && { paddingBottom: androidKbPadding }]}>
+          {historyLoading && (
+            <View style={styles.historyLoader}>
+              <View style={styles.historyLoaderBar} />
+              <View style={[styles.historyLoaderBar, { width: '60%' }]} />
+              <View style={[styles.historyLoaderBar, { width: '80%' }]} />
+            </View>
+          )}
+          <GiftedChat
+            messages={messages}
+            onSend={onSend}
+            user={{ _id: uid ?? 'guest', name: displayName || 'Sen' }}
+            locale="tr"
+            isSendButtonAlwaysVisible
+            isUserAvatarVisible={false}
+            renderBubble={(props) => <CustomBubble {...props} />}
+            renderInputToolbar={(props) => <CustomInputToolbar {...props} />}
+            renderSend={(props) => <CustomSend {...props} />}
+            renderAvatar={(props) => <CustomAvatar {...props} />}
+            renderDay={(props) => <Day {...props} textStyle={{ color: colors.textSecondary }} />}
+            renderFooter={() => (isTyping ? <TypingIndicator /> : null)}
+            messagesContainerStyle={styles.messagesContainer}
+            textInputProps={{ placeholder: 'Bir şeyler sor...', style: styles.textInput }}
+            bottomOffset={0}
+            keyboardShouldPersistTaps="handled"
+          />
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

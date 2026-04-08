@@ -20,7 +20,9 @@ export const unstable_settings = {
   initialRouteName: '(tabs)',
 };
 
-SplashScreen.preventAutoHideAsync();
+SplashScreen.preventAutoHideAsync().catch(() => {
+  // expo-keep-awake Expo Go'da başlatılamayabilir; uygulamayı bloklamaz
+});
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({

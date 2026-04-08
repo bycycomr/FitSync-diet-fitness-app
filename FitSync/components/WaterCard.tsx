@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/useTheme';
-import { addWaterIntake, fetchTodayWaterIntake, fetchWeeklyWaterIntake } from '@/services/userService';
+import { addWaterIntake, removeLastWaterIntake, fetchTodayWaterIntake, fetchWeeklyWaterIntake } from '@/services/userService';
 import { useUserStore } from '@/store/userStore';
 
 const GLASS_ICON_SIZE = 24;
@@ -36,7 +36,7 @@ const getGlassStyles = (colors: any) =>
 interface GlassItemProps {
   index: number;
   isFilled: boolean;
-  onPress: () => void;
+  onPress: (isFilled: boolean) => void;
 }
 
 function GlassItem({ index, isFilled, onPress }: GlassItemProps) {
@@ -48,7 +48,7 @@ function GlassItem({ index, isFilled, onPress }: GlassItemProps) {
       Animated.timing(scaleAnim, { toValue: 0.85, duration: 80, useNativeDriver: true }),
       Animated.spring(scaleAnim, { toValue: 1, friction: 5, useNativeDriver: true }),
     ]).start();
-    onPress();
+    onPress(isFilled);
   };
 
   const styles_themed = getGlassStyles(colors);
@@ -202,13 +202,33 @@ export function WaterCard({ uid }: WaterCardProps) {
     try {
       setAdding(true);
       await addWaterIntake(uid);
-      // Verileri yeniden yükle
       const stats = await fetchTodayWaterIntake(uid);
       setWaterStats(stats);
     } catch (err) {
       console.error('Su ekleme hatası:', err);
     } finally {
       setAdding(false);
+    }
+  }
+
+  async function handleRemoveWater() {
+    try {
+      setAdding(true);
+      await removeLastWaterIntake(uid);
+      const stats = await fetchTodayWaterIntake(uid);
+      setWaterStats(stats);
+    } catch (err) {
+      console.error('Su silme hatası:', err);
+    } finally {
+      setAdding(false);
+    }
+  }
+
+  function handleGlassPress(isFilled: boolean) {
+    if (isFilled) {
+      handleRemoveWater();
+    } else {
+      handleAddWater();
     }
   }
 
@@ -265,7 +285,7 @@ export function WaterCard({ uid }: WaterCardProps) {
                 key={i}
                 index={i}
                 isFilled={i < waterStats.todayGlasses}
-                onPress={handleAddWater}
+                onPress={handleGlassPress}
               />
             ))}
           </View>

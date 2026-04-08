@@ -365,6 +365,25 @@ export async function addWaterIntake(uid: string): Promise<string> {
 }
 
 /**
+ * Bugüne ait en son su içme kaydını siler (geri al / undo).
+ * @param uid Kullanıcı UID'si
+ * @returns Silinen kayıt varsa true, bugün kayıt yoksa false
+ */
+export async function removeLastWaterIntake(uid: string): Promise<boolean> {
+  const q = buildWaterQuery(uid, 1);
+  const snap = await getDocs(q);
+  const today = getTodayKey();
+
+  const todayDoc = snap.docs.find(
+    (d) => (d.data() as { date: string }).date === today,
+  );
+  if (!todayDoc) return false;
+
+  await deleteDoc(doc(getWaterCollection(uid), todayDoc.id));
+  return true;
+}
+
+/**
  * Bugün içilen su bardaklarının toplam sayısını döndürür.
  * @param uid Kullanıcı UID'si
  * @returns Bugünün su istatistikleri (todayGlasses ve dailyGoal)
