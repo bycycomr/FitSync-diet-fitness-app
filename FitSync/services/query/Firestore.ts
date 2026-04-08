@@ -59,6 +59,12 @@ export const getPersonalRecordsCollection = (uid: string): CollectionReference =
 export const getWeightLogCollection = (uid: string): CollectionReference =>
   collection(db, 'users', uid, 'weightLog');
 
+/**
+ * Kullanıcıya ait foodLog (manuel öğün günlüğü) alt koleksiyonuna erişir
+ */
+export const getFoodLogCollection = (uid: string): CollectionReference =>
+  collection(db, 'users', uid, 'foodLog');
+
 // ─── Sorgu Oluşturucu Fonksiyonlar ────────────────────────────────────────────
 
 /**
@@ -117,6 +123,16 @@ export const buildWeightLogQuery = (uid: string, maxRecords = 30) =>
   query(
     getWeightLogCollection(uid),
     orderBy('recordedAt', 'desc'),
+    limit(maxRecords),
+  );
+
+/**
+ * Manuel öğün günlüğü kayıtlarını yeniden eskiye sıralı getiren sorguyu oluşturur
+ */
+export const buildFoodLogQuery = (uid: string, maxRecords = 100) =>
+  query(
+    getFoodLogCollection(uid),
+    orderBy('loggedAt', 'desc'),
     limit(maxRecords),
   );
 

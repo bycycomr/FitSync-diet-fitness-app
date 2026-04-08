@@ -168,6 +168,30 @@ export interface PersonalRecord {
 
 export type PersonalRecordInput = Omit<PersonalRecord, 'recordedAt'>;
 
+// ─── Manuel Öğün Günlüğü (Food Log) ─────────────────────────────────────────
+
+export interface FoodLog {
+  id: string;
+  date: string;          // 'YYYY-MM-DD'
+  name: string;          // 'Yulaf ezmesi', 'Muz' vb.
+  calories: number;      // kcal
+  protein?: number;      // gram
+  carbs?: number;        // gram
+  fat?: number;          // gram
+  loggedAt: Timestamp | null;
+}
+
+export type FoodLogInput = Omit<FoodLog, 'id'>;
+
+export interface DailyCalorieSummary {
+  totalCalories: number;
+  totalProtein: number;
+  totalCarbs: number;
+  totalFat: number;
+  targetCalories: number; // Kullanıcının günlük hedef kalorisi
+  entries: FoodLog[];
+}
+
 // ─── Kilo Takip Günlüğü ───────────────────────────────────────────────────────
 
 export interface WeightLog {

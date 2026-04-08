@@ -25,7 +25,9 @@ import { useUserStore } from '@/store/userStore';
 import { MealPlanCard } from '@/components/MealPlanCard';
 import { WorkoutPlanCard } from '@/components/WorkoutPlanCard';
 import { WorkoutHistoryCard } from '@/components/WorkoutHistoryCard';
+import { CalorieBudgetCard } from '@/components/CalorieBudgetCard';
 import { addCompletion, fetchWeeklyCompletions, addWorkoutHistory, fetchWorkoutHistory, fetchPersonalRecords, updatePersonalRecords } from '@/services/userService';
+import type { WorkoutHistory, PersonalRecord } from '@/types';
 import { useTheme, ThemeColors } from '@/hooks/useTheme';
 import { analyzeMealFromImage, createMealPlanFromAnalysis } from '@/services/visionService';
 import { generateWeeklyProgram } from '@/services/weeklyProgramService';
@@ -135,8 +137,8 @@ export default function PlanlarScreen() {
 
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isGeneratingWeekly, setIsGeneratingWeekly] = useState(false);
-  const [workoutHistory, setWorkoutHistory] = useState<any[]>([]);
-  const [personalRecords, setPersonalRecords] = useState<any[]>([]);
+  const [workoutHistory, setWorkoutHistory] = useState<WorkoutHistory[]>([]);
+  const [personalRecords, setPersonalRecords] = useState<PersonalRecord[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const userProfile = useUserStore(useShallow((s) => ({
     displayName: s.displayName,
@@ -387,6 +389,9 @@ export default function PlanlarScreen() {
             onPress={goToChat}
           />
         )}
+
+        {/* ── Kalori Bütçesi & Manuel Öğün Günlüğü ─────────────────────────── */}
+        {uid && <CalorieBudgetCard uid={uid} />}
 
         {/* ── Antrenman Geçmişi ve Personal Records ────────────────────────── */}
         {!loadingHistory && (workoutHistory.length > 0 || personalRecords.length > 0) && (

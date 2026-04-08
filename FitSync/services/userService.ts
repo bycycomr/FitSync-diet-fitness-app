@@ -18,7 +18,7 @@ import {
   doc,
 } from 'firebase/firestore';
 import { useUserStore } from '@/store/userStore';
-import type { UserProfile, ChatMessage, ChatMessageInput, CompletionInput, DayStats, Achievement, StreakData, WaterIntakeInput, WaterStats, WorkoutHistory, WorkoutHistoryInput, PersonalRecord, PersonalRecordInput, ExerciseDetail, WeightLog, WeightLogInput } from '@/types';
+import type { UserProfile, ChatMessage, ChatMessageInput, CompletionInput, DayStats, Achievement, StreakData, WaterIntakeInput, WaterStats, WorkoutHistory, WorkoutHistoryInput, PersonalRecord, PersonalRecordInput, ExerciseDetail, WeightLog, WeightLogInput, FoodLog, FoodLogInput, DailyCalorieSummary } from '@/types';
 
 // Re-export for use in other modules
 export type { DayStats };
@@ -30,12 +30,14 @@ import {
   getWorkoutHistoryCollection,
   getPersonalRecordsCollection,
   getWeightLogCollection,
+  getFoodLogCollection,
   buildChatHistoryQuery,
   buildCompletionsQuery,
   buildWaterQuery,
   buildWorkoutHistoryQuery,
   buildPersonalRecordsQuery,
   buildWeightLogQuery,
+  buildFoodLogQuery,
   getTodayKey,
   getDateKey,
   TR_DAYS,
@@ -590,4 +592,62 @@ export async function fetchWeightLog(uid: string, maxRecords = 30): Promise<Weig
   return snap.docs
     .map((d) => ({ id: d.id, ...(d.data() as Omit<WeightLog, 'id'>) }))
     .sort((a, b) => a.date.localeCompare(b.date)); // eskiden yeniye sırala (grafik için)
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MANUEL ÖĞÜN GÜNLÜĞÜ (FOOD LOG) — Kalori Bütçesi Takibi
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Manuel öğün kaydını Firestore'a ekler.
+ * @param uid Kullanıcı UID'si
+ * @param entry Eklenecek öğün bilgileri (ad, kalori, opsiyonel makrolar)
+ * @returns Eklenen kaydın ID'si
+ */
+export async function addFoodLog(
+  uid: string,
+  entry: Omit<FoodLogInput, 'date' | 'loggedAt'>,
+): Promise<string> {
+  const ref = await addDoc(getFoodLogCollection(uid), {
+    ...entry,
+    date: getTodayKey(),
+    loggedAt: serverTimestamp(),
+  });
+  return ref.id;
+}
+
+/**
+ * Bugüne ait tüm öğün kayıtlarını getirir ve kalori özetini döndürür.
+ * @param uid Kullanıcı UID'si
+ * @param targetCalories Kullanıcının günlük hedef kalorisi (varsayılan: 2000)
+ * @returns Bugünkü öğün listesi + kalori özeti
+ */
+export async function fetchTodayFoodLog(
+  uid: string,
+  targetCalories = 2000,
+): Promise<DailyCalorieSummary> {
+  const q = buildFoodLogQuery(uid, 100);
+  const snap = await getDocs(q);
+  const today = getTodayKey();
+
+  const entries: FoodLog[] = snap.docs
+    .map((d) => ({ id: d.id, ...(d.data() as Omit<FoodLog, 'id'>) }))
+    .filter((e) => e.date === today)
+    .reverse(); // eskiden yeniye (loggedAt asc)
+
+  const totalCalories = entries.reduce((sum, e) => sum + (e.calories || 0), 0);
+  const totalProtein  = entries.reduce((sum, e) => sum + (e.protein  || 0), 0);
+  const totalCarbs    = entries.reduce((sum, e) => sum + (e.carbs    || 0), 0);
+  const totalFat      = entries.reduce((sum, e) => sum + (e.fat      || 0), 0);
+
+  return { totalCalories, totalProtein, totalCarbs, totalFat, targetCalories, entries };
+}
+
+/**
+ * Belirli bir öğün kaydını Firestore'dan siler.
+ * @param uid Kullanıcı UID'si
+ * @param logId Silinecek kayıt ID'si
+ */
+export async function deleteFoodLog(uid: string, logId: string): Promise<void> {
+  await deleteDoc(doc(getFoodLogCollection(uid), logId));
 }
