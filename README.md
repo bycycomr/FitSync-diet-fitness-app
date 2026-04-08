@@ -13,15 +13,15 @@ Bu projenin temel amacı; kullanıcıların fiziksel özelliklerini (yaş, boy, 
 ## 🎯 Kapsam
 
 ### Kapsam Dahilinde Olanlar (In-Scope) [cite: 14]
-- **Kimlik Doğrulaması:** Güvenli kayıt ve giriş işlemleri[cite: 15].
-- **Akıllı Sohbet Arayüzü:** Doğal diyalog akışı içinde veri toplayan asistan[cite: 16].
-- **İstem (Prompt) Yönetimi:** Toplanan verileri yapılandırıp LLM'e iletme[cite: 17].
-- **Dinamik Program Üretimi:** Yapay zeka çıktısını (JSON) günlük takvim ve öğün kartları gibi UI bileşenlerine dönüştürme[cite: 18].
-- **İlerleme Takibi:** Tamamlanan görevleri veritabanına kaydederek süreci görselleştirme[cite: 19].
+- **Kimlik Doğrulaması:** Güvenli kayıt ve giriş işlemleri.
+- **Akıllı Sohbet Arayüzü:** Doğal diyalog akışı içinde veri toplayan asistan.
+- **İstem (Prompt) Yönetimi:** Toplanan verileri yapılandırıp LLM'e iletme.
+- **Dinamik Program Üretimi:** Yapay zeka çıktısını (JSON) günlük takvim ve öğün kartları gibi UI bileşenlerine dönüştürme.
+- **İlerleme Takibi:** Tamamlanan görevleri veritabanına kaydederek süreci görselleştirme.
 
-### Kapsam Dışı Olanlar (Out-of-Scope) [cite: 20]
-- Gerçek zamanlı doktor veya diyetisyen görüşmeleri[cite: 21].
-- Giyilebilir cihaz (Akıllı saat, Apple Health vb.) anlık sağlık verisi entegrasyonu[cite: 22].
+### Kapsam Dışı Olanlar (Out-of-Scope) 
+- Gerçek zamanlı doktor veya diyetisyen görüşmeleri.
+- Giyilebilir cihaz (Akıllı saat, Apple Health vb.) anlık sağlık verisi entegrasyonu.
 - Uygulama içi e-ticaret (supplement/ekipman satışı).
 
 ## 🛠️ Teknoloji Yığını
@@ -30,13 +30,13 @@ Ayrı bir backend sunucusu kurmak yerine, sunucusuz (serverless) mimari tercih e
 
 | Katman | Teknoloji | Kullanım Amacı |
 |--------|-----------|----------------|
-| **Frontend** | React Native & Expo | Çapraz platform iOS/Android mobil geliştirme [cite: 26] |
-| **Navigasyon** | React Navigation | Ekranlar arası yönlendirme yönetimi [cite: 27] |
-| **Sohbet UI** | React Native Gifted Chat | Özelleştirilebilir sohbet arayüzü bileşeni [cite: 28] |
-| **State Yönetimi** | Zustand | Hafif ve hızlı global durum yönetimi [cite: 29] |
+| **Frontend** | React Native & Expo | Çapraz platform iOS/Android mobil geliştirme  |
+| **Navigasyon** | React Navigation | Ekranlar arası yönlendirme yönetimi  |
+| **Sohbet UI** | React Native Gifted Chat | Özelleştirilebilir sohbet arayüzü bileşeni  |
+| **State Yönetimi** | Zustand | Hafif ve hızlı global durum yönetimi  |
 | **Veritabanı & Auth**| Firebase (Firestore & Auth) | Sunucusuz veri depolama ve kimlik doğrulama  |
 | **API & Güvenlik** | Expo API Routes / Cloud Functions| API güvenliği ve aracı backend işlemleri  |
-| **Yapay Zeka** | Gemini API (veya OpenAI API) | Doğal dil analizi ve yapılandırılmış JSON üretimi [cite: 35] |
+| **Yapay Zeka** | Gemini API (veya OpenAI API) | Doğal dil analizi ve yapılandırılmış JSON üretimi  |
 
 ## 📁 Proje Yapısı
 
