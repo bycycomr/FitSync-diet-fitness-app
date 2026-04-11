@@ -24,7 +24,7 @@ import { CustomAvatar } from '@/components/chat/CustomAvatar';
 import { TypingIndicator } from '@/components/chat/TypingIndicator';
 import { StreamingBubble } from '@/components/chat/StreamingBubble';
 import { BOT_ID, BOT_USER, WELCOME_MSG } from '@/components/chat/constants';
-import { makeMsg } from '@/components/chat/utils';
+import { makeMsg, pruneHistory } from '@/components/chat/utils';
 
 // ─── Ana Ekran ────────────────────────────────────────────────────────────────
 
@@ -122,6 +122,10 @@ export default function SohbetScreen() {
       geminiHistory.current.push({ role: 'user', text: userMsg.text });
 
       try {
+        // Token limitine yaklaşmasını önlemek için geçmiş buda
+        // İlk 2 mesaj (anchor) + son 20 mesaj koru, ortayı sil
+        geminiHistory.current = pruneHistory(geminiHistory.current, 20);
+
         const botText = await sendChatMessageStream(
           geminiHistory.current,
           { displayName: displayName || undefined, height, weight, targetWeight, bmi, goal, age },
