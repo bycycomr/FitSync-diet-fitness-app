@@ -3,7 +3,7 @@ import { Bubble, BubbleProps, IMessage } from 'react-native-gifted-chat';
 import { View, Text, TouchableOpacity, StyleSheet, Pressable, Platform, Alert } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 import * as Clipboard from 'expo-clipboard';
-import { useTheme } from '@/hooks/useTheme';
+import { useTheme, ThemeColors } from '@/hooks/useTheme';
 import { BOT_ID } from './constants';
 
 /**
@@ -14,7 +14,14 @@ export interface IMessageWithRetry extends IMessage {
   _id: string; // 'error_<timestamp>' format
 }
 
-export function CustomBubble(props: BubbleProps<IMessage>) {
+/** Retry callback içeren genişletilmiş mesaj tipi */
+export interface IMessageWithMetadata extends IMessage {
+  metadata?: {
+    onRetry?: () => void;
+  };
+}
+
+export function CustomBubble(props: BubbleProps<IMessageWithMetadata>) {
   const { colors } = useTheme();
   const isBot = props.currentMessage?.user._id === BOT_ID;
   const isError = typeof props.currentMessage?._id === 'string' && props.currentMessage._id.startsWith('error_');
@@ -53,7 +60,7 @@ export function CustomBubble(props: BubbleProps<IMessage>) {
               style={styles.retryButton}
               onPress={() => {
                 // Retry callback — parent'tan gelir
-                const metadata = (props.currentMessage as any)?.metadata;
+                const metadata = (props.currentMessage as IMessageWithMetadata)?.metadata;
                 if (metadata?.onRetry) {
                   metadata.onRetry();
                 }
@@ -198,7 +205,7 @@ export function CustomBubble(props: BubbleProps<IMessage>) {
   );
 }
 
-const getErrorStyles = (colors: any) =>
+const getErrorStyles = (colors: ThemeColors) =>
   StyleSheet.create({
     errorContainer: {
       flexDirection: 'row',
