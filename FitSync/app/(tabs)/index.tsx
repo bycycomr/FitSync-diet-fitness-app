@@ -30,8 +30,8 @@ import { CustomAvatar } from '@/components/chat/CustomAvatar';
 import { TypingIndicator } from '@/components/chat/TypingIndicator';
 import { StreamingBubble } from '@/components/chat/StreamingBubble';
 import { QuickReplies } from '@/components/chat/QuickReplies';
-import { BOT_ID, BOT_USER, WELCOME_MSG } from '@/components/chat/constants';
-import { makeMsg, pruneHistory } from '@/components/chat/utils';
+import { BOT_ID, BOT_USER } from '@/components/chat/constants';
+import { makeMsg, pruneHistory, buildWelcomeMessage } from '@/components/chat/utils';
 
 // ─── Ana Ekran ────────────────────────────────────────────────────────────────
 
@@ -43,6 +43,12 @@ export default function SohbetScreen() {
   const { colors } = useTheme();
   const styles = getScreenStyles(colors);
   const insets = useSafeAreaInsets();
+
+  // Dinamik karşılama mesajı — saate ve kullanıcı verisine göre
+  const getDynamicWelcomeMsg = (userWeight?: number | null) => {
+    const hour = new Date().getHours();
+    return buildWelcomeMessage(hour, userWeight ? { weight: userWeight } : undefined);
+  };
 
   // Android: Keyboard API ile doğrudan klavye yüksekliğini dinle
   const [androidKbPadding, setAndroidKbPadding] = useState(0);
@@ -82,7 +88,7 @@ export default function SohbetScreen() {
   // Gemini'ye gönderilecek konuşma geçmişi (role: 'user' | 'model')
   const geminiHistory = React.useRef<GeminiMessage[]>([]);
 
-  const [messages, setMessages] = useState<IMessage[]>([WELCOME_MSG]);
+  const [messages, setMessages] = useState<IMessage[]>([getDynamicWelcomeMsg(weight)]);
   const [isTyping, setIsTyping] = useState(false);
   const [streamingText, setStreamingText] = useState('');
   const [historyLoading, setHistoryLoading] = useState(true);
@@ -106,7 +112,7 @@ export default function SohbetScreen() {
       }));
 
       // GiftedChat en yeni mesajı başa koyar
-      setMessages(GiftedChat.append([WELCOME_MSG], loaded.reverse()));
+      setMessages(GiftedChat.append([getDynamicWelcomeMsg(weight)], loaded.reverse()));
     }).catch(console.error).finally(() => setHistoryLoading(false));
   }, [uid]);
 

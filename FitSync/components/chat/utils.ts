@@ -1,5 +1,6 @@
 import { IMessage } from 'react-native-gifted-chat';
 import type { GeminiMessage } from '@/services/geminiService';
+import type { UserProfile } from '@/types';
 import { BOT_USER, BOT_ID } from './constants';
 
 export function makeMsg(
@@ -51,4 +52,41 @@ export function pruneHistory(
 
   // Birleştir ve döndür
   return [...anchor, ...recent];
+}
+
+/**
+ * Zamana ve kullanıcı verilerine göre dinamik karşılama mesajı oluştur.
+ *
+ * @param hour Saat bilgisi (0-23)
+ * @param userProfile Kullanıcı profili (weight bilgisi kalori hedefi hesaplamak için)
+ * @returns Hoş geldin mesajı IMessage formatında
+ */
+export function buildWelcomeMessage(
+  hour: number,
+  userProfile?: Partial<UserProfile>,
+): IMessage {
+  let text: string;
+
+  // Sabah (06:00-11:59)
+  if (hour >= 6 && hour < 12) {
+    const targetCalories = userProfile?.weight
+      ? Math.round(userProfile.weight * 30)
+      : 2000;
+    text = `Günaydın! 👋 Bugün kalori hedefin **${targetCalories} kcal**.\n\nBeslenme planın, antrenman programın veya kilo hedeflerin hakkında sana yardımcı olmaya hazırım!`;
+  }
+  // Öğleden sonra (12:00-17:59)
+  else if (hour >= 12 && hour < 18) {
+    text = `Hoş geldin! 👋 Öğle yemeğini kaydettik mi?\n\nBeslenme planın, antrenman programın veya kilo hedeflerin hakkında sana yardımcı olmaya hazırım.`;
+  }
+  // Akşam (18:00-05:59)
+  else {
+    text = `Hoş geldin! 👋 Bugünkü antrenmanını tamamladın mı?\n\nBeslenme planın, antrenman programın veya kilo hedeflerin hakkında sana yardımcı olmaya hazırım.`;
+  }
+
+  return {
+    _id: '__welcome__',
+    text,
+    createdAt: new Date(),
+    user: BOT_USER,
+  };
 }
