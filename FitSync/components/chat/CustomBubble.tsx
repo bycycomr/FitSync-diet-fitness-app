@@ -1,7 +1,8 @@
 import React from 'react';
 import { Bubble, BubbleProps, IMessage } from 'react-native-gifted-chat';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Pressable, Platform, Alert } from 'react-native';
 import Markdown from 'react-native-markdown-display';
+import * as Clipboard from 'expo-clipboard';
 import { useTheme } from '@/hooks/useTheme';
 
 /**
@@ -16,6 +17,24 @@ export function CustomBubble(props: BubbleProps<IMessage>) {
   const { colors } = useTheme();
   const isBot = props.currentMessage?.user._id === 'bot';
   const isError = typeof props.currentMessage?._id === 'string' && props.currentMessage._id.startsWith('error_');
+
+  const handleLongPress = async () => {
+    if (!props.currentMessage?.text) return;
+
+    try {
+      await Clipboard.setStringAsync(props.currentMessage.text);
+      // Göster Toast bildirimi
+      if (Platform.OS === 'android') {
+        // @ts-ignore — React Native'nin ToastAndroid modülü SDK 54'te mevcut
+        require('react-native').ToastAndroid.show('Mesaj kopyalandı! ✓', 1500);
+      } else {
+        // iOS için basit bir Alert
+        Alert.alert('Başarılı', 'Mesaj kopyalandı!', [{ text: 'Tamam' }], { cancelable: true });
+      }
+    } catch (error) {
+      console.error('Clipboard error:', error);
+    }
+  };
 
   // Hata mesajı ise çıkart ve retry düğmesi göster
   const renderMessageText = () => {
@@ -137,42 +156,44 @@ export function CustomBubble(props: BubbleProps<IMessage>) {
   };
 
   return (
-    <Bubble
-      {...props}
-      renderMessageText={renderMessageText}
-      wrapperStyle={{
-        right: {
-          backgroundColor: colors.chatUserBubble,
-          borderRadius: 18,
-          borderBottomRightRadius: 4,
-          paddingHorizontal: 2,
-          paddingVertical: 1,
-          shadowColor: colors.chatUserBubble,
-          shadowOpacity: 0.25,
-          shadowOffset: { width: 0, height: 2 },
-          shadowRadius: 6,
-          elevation: 3,
-        },
-        left: {
-          backgroundColor: isError ? colors.error + '15' : colors.chatBotBubble,
-          borderRadius: 18,
-          borderBottomLeftRadius: 4,
-          paddingHorizontal: 2,
-          paddingVertical: 1,
-          borderWidth: isError ? 1 : 0,
-          borderColor: colors.error,
-          shadowColor: '#000',
-          shadowOpacity: 0.06,
-          shadowOffset: { width: 0, height: 1 },
-          shadowRadius: 4,
-          elevation: 2,
-        },
-      }}
-      textStyle={{
-        right: { color: colors.chatUserText, fontSize: 15, lineHeight: 22 },
-        left: { color: colors.chatBotText, fontSize: 15, lineHeight: 22 },
-      }}
-    />
+    <Pressable onLongPress={handleLongPress}>
+      <Bubble
+        {...props}
+        renderMessageText={renderMessageText}
+        wrapperStyle={{
+          right: {
+            backgroundColor: colors.chatUserBubble,
+            borderRadius: 18,
+            borderBottomRightRadius: 4,
+            paddingHorizontal: 2,
+            paddingVertical: 1,
+            shadowColor: colors.chatUserBubble,
+            shadowOpacity: 0.25,
+            shadowOffset: { width: 0, height: 2 },
+            shadowRadius: 6,
+            elevation: 3,
+          },
+          left: {
+            backgroundColor: isError ? colors.error + '15' : colors.chatBotBubble,
+            borderRadius: 18,
+            borderBottomLeftRadius: 4,
+            paddingHorizontal: 2,
+            paddingVertical: 1,
+            borderWidth: isError ? 1 : 0,
+            borderColor: colors.error,
+            shadowColor: '#000',
+            shadowOpacity: 0.06,
+            shadowOffset: { width: 0, height: 1 },
+            shadowRadius: 4,
+            elevation: 2,
+          },
+        }}
+        textStyle={{
+          right: { color: colors.chatUserText, fontSize: 15, lineHeight: 22 },
+          left: { color: colors.chatBotText, fontSize: 15, lineHeight: 22 },
+        }}
+      />
+    </Pressable>
   );
 }
 
