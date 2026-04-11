@@ -5,7 +5,7 @@
  * Tüm uzun istemler bu dosyada merkezzileştirilmiştir.
  */
 
-import type { UserProfile } from '@/types';
+import type { WeeklyProgramProfile } from '@/services/weeklyProgramService';
 
 /**
  * Haftalık program oluşturma için Gemini prompt'ı
@@ -16,7 +16,7 @@ import type { UserProfile } from '@/types';
  * @returns Formatlanmış prompt string'i
  */
 export const buildWeeklyProgramPrompt = (
-  userProfile: UserProfile,
+  userProfile: WeeklyProgramProfile,
   avgMealsPerDay: string,
   avgWorkoutsPerDay: string,
 ): string => {

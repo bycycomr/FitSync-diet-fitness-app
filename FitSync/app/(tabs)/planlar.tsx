@@ -235,10 +235,20 @@ export default function PlanlarScreen() {
       return;
     }
 
+    // Profil eksikliği kontrolü — haftalık program için zorunlu alanlar
+    if (!userProfile.weight || !userProfile.height || !userProfile.age) {
+      Alert.alert(
+        'Profil Eksik',
+        'Haftalık program oluşturmak için boy, kilo ve yaş bilgilerini doldurmak gerekiyor.\n\nProfil → Profili Düzenle seçeneğinden güncelleyebilirsin.',
+        [{ text: 'Tamam' }]
+      );
+      return;
+    }
+
     try {
       setIsGeneratingWeekly(true);
       const completions = await fetchWeeklyCompletions(uid);
-      const program = await generateWeeklyProgram(userProfile as any, completions, uid);
+      const program = await generateWeeklyProgram(userProfile, completions, uid);
 
       if (program.mealPlans && program.mealPlans.length > 0) {
         setActiveMealPlan(program.mealPlans[0]);

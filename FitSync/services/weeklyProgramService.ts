@@ -1,4 +1,7 @@
 import { UserProfile, MealPlan, WorkoutPlan, Meal, Exercise } from '@/types';
+
+/** generateWeeklyProgram'a gerekli profil alanları — uid/createdAt/updatedAt gerekmez */
+export type WeeklyProgramProfile = Omit<UserProfile, 'uid' | 'createdAt' | 'updatedAt'>;
 import { buildWeeklyProgramPrompt } from '@/constants/prompts';
 
 interface WeeklyProgram {
@@ -25,7 +28,7 @@ interface WeeklyProgramDay {
  * Generate personalized weekly program from Gemini based on user profile and completion history
  */
 export async function generateWeeklyProgram(
-  userProfile: UserProfile,
+  userProfile: WeeklyProgramProfile,
   pastCompletions: { date: string; mealCount: number; workoutCount: number }[],
   uid: string
 ): Promise<WeeklyProgram> {
