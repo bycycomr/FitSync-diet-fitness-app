@@ -29,6 +29,7 @@ import { CustomSend } from '@/components/chat/CustomSend';
 import { CustomAvatar } from '@/components/chat/CustomAvatar';
 import { TypingIndicator } from '@/components/chat/TypingIndicator';
 import { StreamingBubble } from '@/components/chat/StreamingBubble';
+import { QuickReplies } from '@/components/chat/QuickReplies';
 import { BOT_ID, BOT_USER, WELCOME_MSG } from '@/components/chat/constants';
 import { makeMsg, pruneHistory } from '@/components/chat/utils';
 
@@ -255,6 +256,23 @@ export default function SohbetScreen() {
             bottomOffset={0}
             keyboardShouldPersistTaps="handled"
           />
+
+          {/* Hızlı eylem çipleri — son mesaj bot tarafındansa göster */}
+          {messages.length > 0 && messages[0].user._id === BOT_ID && !streamingText && !isTyping && (
+            <QuickReplies
+              onSendMessage={(text) => {
+                const msgToSend: IMessage[] = [
+                  {
+                    _id: `${Date.now()}`,
+                    text,
+                    createdAt: new Date(),
+                    user: { _id: uid ?? 'guest', name: displayName || 'Sen' },
+                  },
+                ];
+                onSend(msgToSend);
+              }}
+            />
+          )}
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
