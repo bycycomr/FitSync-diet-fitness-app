@@ -207,7 +207,21 @@ export default function SohbetScreen() {
         setStreamingText('');
         const errText = err instanceof Error ? err.message : 'Bir hata oluştu. Lütfen tekrar dene.';
         const errMsg = makeMsg(errText, true, uid ?? BOT_ID, 'FitSync AI');
-        setMessages((prev) => GiftedChat.append(prev, [errMsg]));
+
+        // Hata mesajını işaretle ve retry callback'i ekle
+        const errorMsgWithRetry = {
+          ...errMsg,
+          _id: `error_${Date.now()}`,
+          metadata: {
+            onRetry: () => {
+              // Hatalı mesajı geçmişten kaldır ve yeniden gönder
+              geminiHistory.current.pop();
+              onSend([userMsg]);
+            },
+          },
+        };
+
+        setMessages((prev) => GiftedChat.append(prev, [errorMsgWithRetry]));
         // Hatalı mesajı geçmişe ekleme — tutarlılığı koru
         geminiHistory.current.pop();
       } finally {
