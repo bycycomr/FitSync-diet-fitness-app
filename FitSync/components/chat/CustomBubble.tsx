@@ -4,6 +4,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Pressable, Platform, Alert } 
 import Markdown from 'react-native-markdown-display';
 import * as Clipboard from 'expo-clipboard';
 import { useTheme } from '@/hooks/useTheme';
+import { BOT_ID } from './constants';
 
 /**
  * CustomBubble: Hata durumunda retry butonu göster
@@ -15,7 +16,7 @@ export interface IMessageWithRetry extends IMessage {
 
 export function CustomBubble(props: BubbleProps<IMessage>) {
   const { colors } = useTheme();
-  const isBot = props.currentMessage?.user._id === 'bot';
+  const isBot = props.currentMessage?.user._id === BOT_ID;
   const isError = typeof props.currentMessage?._id === 'string' && props.currentMessage._id.startsWith('error_');
 
   const handleLongPress = async () => {
