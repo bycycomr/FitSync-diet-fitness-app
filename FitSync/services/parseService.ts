@@ -18,6 +18,20 @@ const PLAN_TRIGGER_KEYWORDS = [
   'günlük plan', 'haftalık program',
 ];
 
+const USER_PLAN_KEYWORDS = [
+  'plan', 'program', 'öneri', 'menü', 'tarif', 'yemek',
+  'antrenman', 'workout', 'beslenme', 'diyet',
+];
+
+/**
+ * Kullanıcı mesajının plan/program isteme amaçlı anahtar kelimeler içerip
+ * içermediğini kontrol eder.
+ */
+export function userAskedForPlan(text: string): boolean {
+  const lower = text.toLowerCase();
+  return USER_PLAN_KEYWORDS.some(k => lower.includes(k));
+}
+
 /**
  * Bot yanıtının bir beslenme veya antrenman planı içerip içermediğini
  * hızlıca kontrol eder.

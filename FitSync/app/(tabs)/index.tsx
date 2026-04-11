@@ -21,7 +21,7 @@ import {
   fetchWorkoutHistory,
 } from '@/services/userService';
 import { sendChatMessageStream, type GeminiMessage, type RichContext } from '@/services/geminiService';
-import { parsePlanFromText } from '@/services/parseService';
+import { parsePlanFromText, userAskedForPlan, mightContainPlan } from '@/services/parseService';
 import { useTheme, ThemeColors } from '@/hooks/useTheme';
 import { CustomBubble } from '@/components/chat/CustomBubble';
 import { CustomInputToolbar } from '@/components/chat/CustomInputToolbar';
@@ -195,14 +195,18 @@ export default function SohbetScreen() {
         }
 
         // Yanıt bir plan içeriyorsa arka planda parse et (fire-and-forget)
-        parsePlanFromText(botText).then((parsed) => {
-          if (!parsed) return;
-          if (parsed.type === 'meal' && parsed.mealPlan) {
-            setActiveMealPlan(parsed.mealPlan);
-          } else if (parsed.type === 'workout' && parsed.workoutPlan) {
-            setActiveWorkoutPlan(parsed.workoutPlan);
-          }
-        }).catch(console.error);
+        // Optimization: Sadece kullanıcı plan istedi VEYA bot yanıtı plan içeriyorsa parse et
+        const shouldParse = userAskedForPlan(userMsg.text) || mightContainPlan(botText);
+        if (shouldParse) {
+          parsePlanFromText(botText).then((parsed) => {
+            if (!parsed) return;
+            if (parsed.type === 'meal' && parsed.mealPlan) {
+              setActiveMealPlan(parsed.mealPlan);
+            } else if (parsed.type === 'workout' && parsed.workoutPlan) {
+              setActiveWorkoutPlan(parsed.workoutPlan);
+            }
+          }).catch(console.error);
+        }
       } catch (err) {
         setStreamingText('');
         const errText = err instanceof Error ? err.message : 'Bir hata oluştu. Lütfen tekrar dene.';
