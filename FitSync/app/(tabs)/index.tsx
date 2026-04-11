@@ -88,10 +88,19 @@ export default function SohbetScreen() {
   // Gemini'ye gönderilecek konuşma geçmişi (role: 'user' | 'model')
   const geminiHistory = React.useRef<GeminiMessage[]>([]);
 
-  const [messages, setMessages] = useState<IMessage[]>([getDynamicWelcomeMsg(weight)]);
+  const [messages, setMessages] = useState<IMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const [streamingText, setStreamingText] = useState('');
   const [historyLoading, setHistoryLoading] = useState(true);
+  const [welcomeInitialized, setWelcomeInitialized] = useState(false);
+
+  // Hoş geldin mesajını başlangıçta ayarla
+  useEffect(() => {
+    if (!welcomeInitialized) {
+      setMessages([getDynamicWelcomeMsg(weight)]);
+      setWelcomeInitialized(true);
+    }
+  }, [welcomeInitialized, weight]);
 
   useEffect(() => {
     if (!uid) {
@@ -100,7 +109,10 @@ export default function SohbetScreen() {
     }
 
     fetchChatHistory(uid, 60).then((history) => {
-      if (history.length === 0) return;
+      if (history.length === 0) {
+        setHistoryLoading(false);
+        return;
+      }
 
       const loaded: IMessage[] = history.map((m) => ({
         _id: m.id,
@@ -113,8 +125,9 @@ export default function SohbetScreen() {
 
       // GiftedChat en yeni mesajı başa koyar
       setMessages(GiftedChat.append([getDynamicWelcomeMsg(weight)], loaded.reverse()));
+      setHistoryLoading(false);
     }).catch(console.error).finally(() => setHistoryLoading(false));
-  }, [uid]);
+  }, [uid, weight, displayName]);
 
   const onSend = useCallback(
     async (newMessages: IMessage[] = []) => {
