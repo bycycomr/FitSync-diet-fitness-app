@@ -45,6 +45,26 @@ import {
 } from './query/Firestore';
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// YARDIMCI FONKSİYONLAR
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Firestore Timestamp, Date, string veya null/undefined değerini güvenli biçimde
+ * JavaScript Date nesnesine dönüştürür. `.toDate()` metodu yoksa crash vermez.
+ * @param timestamp Dönüştürülecek değer
+ * @returns Geçerli bir Date nesnesi
+ */
+export function safeToDate(timestamp: unknown): Date {
+  if (!timestamp) return new Date();
+  if (typeof (timestamp as { toDate?: unknown }).toDate === 'function') {
+    return (timestamp as { toDate: () => Date }).toDate();
+  }
+  if (timestamp instanceof Date) return timestamp;
+  const parsed = new Date(timestamp as string | number);
+  return isNaN(parsed.getTime()) ? new Date() : parsed;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // KULLANICI PROFILI — Profile Okuma / Güncelleme
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -140,10 +160,15 @@ export async function fetchChatHistory(
 ): Promise<ChatMessage[]> {
   const q = buildChatHistoryQuery(uid, maxMessages);
   const snap = await getDocs(q);
-  return snap.docs.map((d) => ({
-    id: d.id,
-    ...(d.data() as Omit<ChatMessage, 'id'>),
-  }));
+  return snap.docs.map((d) => {
+    const data = d.data() as Omit<ChatMessage, 'id'>;
+    return {
+      id: d.id,
+      ...data,
+      // Firestore Timestamp → Date güvenli dönüşümü
+      createdAt: safeToDate(data.createdAt),
+    };
+  });
 }
 
 /**

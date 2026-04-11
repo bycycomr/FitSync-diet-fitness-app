@@ -19,6 +19,7 @@ import {
   fetchTodayFoodLog,
   fetchWeightLog,
   fetchWorkoutHistory,
+  safeToDate,
 } from '@/services/userService';
 import { sendChatMessageStream, type GeminiMessage, type RichContext } from '@/services/geminiService';
 import { parsePlanFromText, userAskedForPlan, mightContainPlan } from '@/services/parseService';
@@ -117,7 +118,7 @@ export default function SohbetScreen() {
       const loaded: IMessage[] = history.map((m) => ({
         _id: m.id,
         text: m.text,
-        createdAt: m.createdAt ? m.createdAt.toDate() : new Date(),
+        createdAt: safeToDate(m.createdAt),
         user: m.role === 'assistant'
           ? BOT_USER
           : { _id: uid, name: displayName },

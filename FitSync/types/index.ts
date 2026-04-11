@@ -31,7 +31,8 @@ export interface ChatMessage {
   id: string;
   role: MessageRole;
   text: string;
-  createdAt: Timestamp | null;
+  /** Firestore'dan okunurken Timestamp, fetchChatHistory sonrası Date olarak gelir */
+  createdAt: Timestamp | Date | null;
 }
 
 // Firestore'a yazılacak versiyon (id alanı hariç — doc ID olarak saklanır)
