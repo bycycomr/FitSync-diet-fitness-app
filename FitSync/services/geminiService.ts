@@ -5,7 +5,7 @@
  * API anahtarına dokunmaz — tüm istekler /api/chat route'una iletilir.
  */
 
-import type { Goal, DayStats } from '@/types';
+import type { Goal, DayStats, DailyCalorieSummary, WeightLog, WorkoutHistory } from '@/types';
 
 // ─── Tipler ───────────────────────────────────────────────────────────────────
 
@@ -24,6 +24,15 @@ export interface UserProfileContext {
   age?: number | null;
 }
 
+/**
+ * Zengin bağlam: bugünkü yemek günlüğü, son kilo, haftalık antrenmanlar
+ */
+export interface RichContext {
+  todayCalorieSummary?: DailyCalorieSummary;
+  latestWeight?: WeightLog;
+  weeklyWorkoutHistory?: WorkoutHistory[];
+}
+
 // ─── API çağrısı ──────────────────────────────────────────────────────────────
 
 /**
@@ -34,6 +43,7 @@ export async function sendChatMessage(
   messages: GeminiMessage[],
   userProfile?: UserProfileContext,
   last5Days?: DayStats[],
+  richContext?: RichContext,
 ): Promise<string> {
   const controller = new AbortController();
   const timeoutId  = setTimeout(() => controller.abort(), 15_000);
@@ -42,7 +52,12 @@ export async function sendChatMessage(
     const response = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages, userProfile, last5DaysStats: last5Days }),
+      body: JSON.stringify({
+        messages,
+        userProfile,
+        last5DaysStats: last5Days,
+        ...richContext,
+      }),
       signal: controller.signal,
     });
 
@@ -75,6 +90,7 @@ export async function sendChatMessageStream(
   userProfile?: UserProfileContext,
   last5Days?: DayStats[],
   onChunk?: (accumulated: string) => void,
+  richContext?: RichContext,
 ): Promise<string> {
   const controller = new AbortController();
   const timeoutId  = setTimeout(() => controller.abort(), 30_000); // streaming için daha uzun
@@ -83,7 +99,12 @@ export async function sendChatMessageStream(
     const response = await fetch('/api/chat?stream=true', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages, userProfile, last5DaysStats: last5Days }),
+      body: JSON.stringify({
+        messages,
+        userProfile,
+        last5DaysStats: last5Days,
+        ...richContext,
+      }),
       signal: controller.signal,
     });
 
@@ -94,7 +115,7 @@ export async function sendChatMessageStream(
     // React Native'in eski versiyonlarında response.body olmayabilir → fallback
     if (!response.body) {
       clearTimeout(timeoutId);
-      return sendChatMessage(messages, userProfile, last5Days);
+      return sendChatMessage(messages, userProfile, last5Days, richContext);
     }
 
     const reader  = response.body.getReader();

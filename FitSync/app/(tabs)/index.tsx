@@ -13,8 +13,14 @@ import {
   Day,
 } from 'react-native-gifted-chat';
 import { useUserStore } from '@/store/userStore';
-import { addChatMessage, fetchChatHistory } from '@/services/userService';
-import { sendChatMessageStream, type GeminiMessage } from '@/services/geminiService';
+import {
+  addChatMessage,
+  fetchChatHistory,
+  fetchTodayFoodLog,
+  fetchWeightLog,
+  fetchWorkoutHistory,
+} from '@/services/userService';
+import { sendChatMessageStream, type GeminiMessage, type RichContext } from '@/services/geminiService';
 import { parsePlanFromText } from '@/services/parseService';
 import { useTheme, ThemeColors } from '@/hooks/useTheme';
 import { CustomBubble } from '@/components/chat/CustomBubble';
@@ -126,6 +132,37 @@ export default function SohbetScreen() {
         // İlk 2 mesaj (anchor) + son 20 mesaj koru, ortayı sil
         geminiHistory.current = pruneHistory(geminiHistory.current, 20);
 
+        // Zengin bağlam: bugünkü öğünler, son kilo, haftalık antrenmanlar
+        let richContext: RichContext = {};
+        if (uid) {
+          try {
+            // Hedeflenen kalori: basit formül (e.g., body weight × 30 kcal/kg)
+            const targetCalories = weight ? Math.round(weight * 30) : 2000;
+            const todayFood = await fetchTodayFoodLog(uid, targetCalories);
+            if (todayFood) richContext.todayCalorieSummary = todayFood;
+          } catch {
+            // Sessiz başarısızlık — eksik bağlam AI'ı çok kötü etkilemez
+          }
+
+          try {
+            const weightLogs = await fetchWeightLog(uid, 1);
+            if (weightLogs && weightLogs.length > 0) {
+              richContext.latestWeight = weightLogs[0];
+            }
+          } catch {
+            // Sessiz başarısızlık
+          }
+
+          try {
+            const workoutLogs = await fetchWorkoutHistory(uid, 7);
+            if (workoutLogs && workoutLogs.length > 0) {
+              richContext.weeklyWorkoutHistory = workoutLogs;
+            }
+          } catch {
+            // Sessiz başarısızlık
+          }
+        }
+
         const botText = await sendChatMessageStream(
           geminiHistory.current,
           { displayName: displayName || undefined, height, weight, targetWeight, bmi, goal, age },
@@ -135,6 +172,7 @@ export default function SohbetScreen() {
             if (isTyping) setIsTyping(false);
             setStreamingText(accumulated);
           },
+          richContext,
         );
 
         // Streaming bitti — balonu temizle ve gerçek mesajı ekle

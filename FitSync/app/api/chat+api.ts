@@ -34,10 +34,49 @@ interface DayStats {
   workoutCount: number;
 }
 
+interface FoodLog {
+  name: string;
+  calories: number;
+  protein?: number;
+  carbs?: number;
+  fat?: number;
+}
+
+interface DailyCalorieSummary {
+  totalCalories: number;
+  totalProtein: number;
+  totalCarbs: number;
+  totalFat: number;
+  targetCalories: number;
+  entries: FoodLog[];
+}
+
+interface WeightLog {
+  date: string;
+  weight: number;
+}
+
+interface ExerciseDetail {
+  name: string;
+  sets?: number;
+  reps?: number;
+  durationSeconds?: number;
+}
+
+interface WorkoutHistory {
+  date: string;
+  workoutName: string;
+  durationMinutes: number;
+  exercises: ExerciseDetail[];
+}
+
 interface ChatRequestBody {
   messages: GeminiMessage[];
   userProfile?: UserProfileContext;
   last5DaysStats?: DayStats[];
+  todayCalorieSummary?: DailyCalorieSummary;
+  latestWeight?: WeightLog;
+  weeklyWorkoutHistory?: WorkoutHistory[];
 }
 
 // ─── Model ───────────────────────────────────────────────────────────────────
@@ -46,7 +85,13 @@ const GROQ_MODEL = 'llama-3.3-70b-versatile';
 
 // ─── System Prompt ────────────────────────────────────────────────────────────
 
-function buildSystemPrompt(profile?: UserProfileContext, last5Days?: DayStats[]): string {
+function buildSystemPrompt(
+  profile?: UserProfileContext,
+  last5Days?: DayStats[],
+  todayCalories?: DailyCalorieSummary,
+  latestWeight?: WeightLog,
+  weeklyWorkouts?: WorkoutHistory[],
+): string {
   const profileLines: string[] = [];
 
   if (profile?.displayName) profileLines.push(`- İsim: ${profile.displayName}`);
@@ -70,7 +115,31 @@ function buildSystemPrompt(profile?: UserProfileContext, last5Days?: DayStats[])
     memorySection = `\n\n## Son 5 Günün İlerleme\n${lines.join('\n')}\n\nBu verilere dayanarak kullanıcının ilerlemesini takip et ve kişiselleştirilmiş tavsiyelerde bulun.`;
   }
 
-  return `Sen FitSync'in yapay zeka asistanısın. Adın FitSync AI.${profileSection}${memorySection}
+  let todaySection = '';
+  if (todayCalories) {
+    const summary = `Günlük Kalori: ${todayCalories.totalCalories}/${todayCalories.targetCalories} kcal`;
+    const macros = `Protein: ${todayCalories.totalProtein}g, Karbonhidrat: ${todayCalories.totalCarbs}g, Yağ: ${todayCalories.totalFat}g`;
+    const meals = todayCalories.entries.length > 0
+      ? `Yenilen yemekler: ${todayCalories.entries.map(e => e.name).join(', ')}`
+      : 'Henüz hiç yemek kaydedilmedi.';
+    todaySection = `\n\n## Bugünün Beslenme\n- ${summary}\n- ${macros}\n- ${meals}`;
+  }
+
+  let weightSection = '';
+  if (latestWeight) {
+    const diff = profile?.weight && profile.weight !== latestWeight.weight
+      ? ` (${(latestWeight.weight - profile.weight).toFixed(1)} kg değişim)`
+      : '';
+    weightSection = `\n\n## Son Kaydedilen Kilo\n- Tarih: ${latestWeight.date}\n- Kilo: ${latestWeight.weight} kg${diff}`;
+  }
+
+  let workoutSection = '';
+  if (weeklyWorkouts && weeklyWorkouts.length > 0) {
+    const summary = weeklyWorkouts.map(w => `${w.date}: ${w.workoutName} (${w.durationMinutes} dk, ${w.exercises.length} egzersiz)`);
+    workoutSection = `\n\n## Bu Hafta Antrenmanlar\n${summary.map(s => `- ${s}`).join('\n')}`;
+  }
+
+  return `Sen FitSync'in yapay zeka asistanısın. Adın FitSync AI.${profileSection}${memorySection}${todaySection}${weightSection}${workoutSection}
 
 ## Görevin
 Kullanıcıya kişiselleştirilmiş beslenme ve fitness tavsiyeleri ver. Yanıtların:
@@ -122,14 +191,27 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: 'Geçersiz istek gövdesi.' }, { status: 400 });
   }
 
-  const { messages, userProfile, last5DaysStats } = body;
+  const {
+    messages,
+    userProfile,
+    last5DaysStats,
+    todayCalorieSummary,
+    latestWeight,
+    weeklyWorkoutHistory,
+  } = body;
   if (!Array.isArray(messages) || messages.length === 0) {
     return Response.json({ error: 'Mesaj listesi boş olamaz.' }, { status: 400 });
   }
 
   const groq = new Groq({ apiKey });
   const groqMessages = toGroqMessages(
-    buildSystemPrompt(userProfile, last5DaysStats),
+    buildSystemPrompt(
+      userProfile,
+      last5DaysStats,
+      todayCalorieSummary,
+      latestWeight,
+      weeklyWorkoutHistory,
+    ),
     messages,
   );
 
