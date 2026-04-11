@@ -160,6 +160,22 @@ export function CustomBubble(props: BubbleProps<IMessageWithMetadata>) {
         </View>
       );
     }
+
+    // Kullanıcı mesajları — düz metin render
+    if (!isBot && props.currentMessage?.text) {
+      return (
+        <Text style={{
+          color: colors.chatUserText,
+          fontSize: 15,
+          lineHeight: 22,
+          paddingHorizontal: 11,
+          paddingVertical: 7,
+        }}>
+          {props.currentMessage.text}
+        </Text>
+      );
+    }
+
     return null;
   };
 
