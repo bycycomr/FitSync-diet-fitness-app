@@ -25,6 +25,7 @@ import { StreakCard } from '@/components/StreakCard';
 import { WaterCard } from '@/components/WaterCard';
 import { WeightProgressChart } from '@/components/WeightProgressChart';
 import { BodyMeasurementCard } from '@/components/BodyMeasurementCard';
+import { WeeklyReportModal } from '@/components/WeeklyReportModal';
 
 // Renkler useTheme() hook'undan alınır
 // Bu sabitler yalnızca hook dışında (component render öncesi) kullanılır
@@ -346,6 +347,8 @@ export default function ProfilScreen() {
   const [notifVisible,   setNotifVisible]   = useState(false);
   const [privacyVisible, setPrivacyVisible] = useState(false);
   const [helpVisible,    setHelpVisible]    = useState(false);
+  const [reportVisible,  setReportVisible]  = useState(false);
+  const streakCount = useUserStore((s) => s.streak?.streakCount ?? 0);
 
   const menuActions: Record<string, () => void> = {
     '1': () => setAccountVisible(true),
@@ -399,6 +402,18 @@ export default function ProfilScreen() {
         {/* Beden Ölçüm Günlüğü */}
         {uid && <BodyMeasurementCard uid={uid} />}
 
+        {/* Haftalık AI Raporu Butonu */}
+        {uid && (
+          <TouchableOpacity
+            style={[styles.reportBtn, { backgroundColor: colors.primary + '1A', borderColor: colors.primary + '44' }]}
+            onPress={() => setReportVisible(true)}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="bar-chart" size={18} color={colors.primary} />
+            <Text style={[styles.reportBtnText, { color: colors.primary }]}>Bu Haftanın Raporunu Gör →</Text>
+          </TouchableOpacity>
+        )}
+
         {/* Haftalık Grafik */}
         {uid && <WeeklyChart uid={uid} />}
 
@@ -447,6 +462,14 @@ export default function ProfilScreen() {
       <NotificationsModal  visible={notifVisible}   onClose={() => setNotifVisible(false)} />
       <PrivacyModal        visible={privacyVisible} onClose={() => setPrivacyVisible(false)} />
       <HelpModal           visible={helpVisible}    onClose={() => setHelpVisible(false)} />
+      {uid && (
+        <WeeklyReportModal
+          visible={reportVisible}
+          onClose={() => setReportVisible(false)}
+          uid={uid}
+          streakCount={streakCount}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -490,4 +513,6 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
   divider: { height: 1, backgroundColor: colors.border },
   logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 16, borderRadius: 16, backgroundColor: colors.error + '1A' },
   logoutText: { fontSize: 15, fontWeight: '600', color: colors.error },
+  reportBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 14, paddingHorizontal: 18, borderRadius: 14, borderWidth: 1 },
+  reportBtnText: { fontSize: 15, fontWeight: '600' },
 });
