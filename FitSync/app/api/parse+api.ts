@@ -101,12 +101,17 @@ export async function POST(request: Request): Promise<Response> {
 
     const rawJson = completion.choices[0]?.message?.content?.trim() ?? '';
 
-    if (planType === 'meal') {
-      const mealPlan = JSON.parse(rawJson) as MealPlan;
-      return Response.json({ type: 'meal', mealPlan } satisfies ParsedPlanResponse);
-    } else {
-      const workoutPlan = JSON.parse(rawJson) as WorkoutPlan;
-      return Response.json({ type: 'workout', workoutPlan } satisfies ParsedPlanResponse);
+    try {
+      if (planType === 'meal') {
+        const mealPlan = JSON.parse(rawJson) as MealPlan;
+        return Response.json({ type: 'meal', mealPlan } satisfies ParsedPlanResponse);
+      } else {
+        const workoutPlan = JSON.parse(rawJson) as WorkoutPlan;
+        return Response.json({ type: 'workout', workoutPlan } satisfies ParsedPlanResponse);
+      }
+    } catch (parseErr) {
+      console.error('[Parse API] JSON ayrıştırma hatası:', parseErr, '— Ham yanıt:', rawJson);
+      return Response.json({ type: 'none' } satisfies ParsedPlanResponse);
     }
   } catch (err) {
     console.error('[Parse API Error]', err);
