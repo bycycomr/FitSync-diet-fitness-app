@@ -133,10 +133,19 @@ function DailyProgressCard({ uid }: { uid: string }) {
   const [loading, setLoading]           = useState(true);
 
   useEffect(() => {
-    fetchTodayCompletions(uid)
-      .then(({ mealCount: m, workoutCount: w }) => { setMealCount(m); setWorkoutCount(w); })
-      .catch(console.error)
-      .finally(() => setLoading(false));
+    let mounted = true;
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('DailyProgressCard fetch timeout')), 8000)
+    );
+    Promise.race([fetchTodayCompletions(uid), timeout])
+      .then(({ mealCount: m, workoutCount: w }) => {
+        if (!mounted) return;
+        setMealCount(m);
+        setWorkoutCount(w);
+      })
+      .catch((err) => { console.error('DailyProgressCard:', err); })
+      .finally(() => { if (mounted) setLoading(false); });
+    return () => { mounted = false; };
   }, [uid]);
 
   const mealProgress    = totalMeals > 0 ? Math.min(mealCount / totalMeals, 1) : 0;
