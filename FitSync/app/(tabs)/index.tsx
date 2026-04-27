@@ -88,6 +88,8 @@ export default function SohbetScreen() {
 
   // Gemini'ye gönderilecek konuşma geçmişi (role: 'user' | 'model')
   const geminiHistory = React.useRef<GeminiMessage[]>([]);
+  // Eş zamanlı parse işlemlerini önler (race condition guard)
+  const isParsingRef = React.useRef(false);
 
   // uid değişince (farklı kullanıcı oturumu) geçmişi sıfırla — veri sızmasını önler
   useEffect(() => {
@@ -222,7 +224,8 @@ export default function SohbetScreen() {
         // Yanıt bir plan içeriyorsa arka planda parse et (fire-and-forget)
         // Optimization: Sadece kullanıcı plan istedi VEYA bot yanıtı plan içeriyorsa parse et
         const shouldParse = userAskedForPlan(userMsg.text) || mightContainPlan(botText);
-        if (shouldParse) {
+        if (shouldParse && !isParsingRef.current) {
+          isParsingRef.current = true;
           parsePlanFromText(botText).then((parsed) => {
             if (!parsed) return;
             if (parsed.type === 'meal' && parsed.mealPlan) {
@@ -230,7 +233,9 @@ export default function SohbetScreen() {
             } else if (parsed.type === 'workout' && parsed.workoutPlan) {
               setActiveWorkoutPlan(parsed.workoutPlan);
             }
-          }).catch(console.error);
+          }).catch(console.error).finally(() => {
+            isParsingRef.current = false;
+          });
         }
       } catch (err) {
         setStreamingText('');
