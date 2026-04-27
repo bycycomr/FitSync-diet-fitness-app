@@ -89,6 +89,11 @@ export default function SohbetScreen() {
   // Gemini'ye gönderilecek konuşma geçmişi (role: 'user' | 'model')
   const geminiHistory = React.useRef<GeminiMessage[]>([]);
 
+  // uid değişince (farklı kullanıcı oturumu) geçmişi sıfırla — veri sızmasını önler
+  useEffect(() => {
+    geminiHistory.current = [];
+  }, [uid]);
+
   const [messages, setMessages] = useState<IMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const [streamingText, setStreamingText] = useState('');
@@ -256,6 +261,21 @@ export default function SohbetScreen() {
     [uid, displayName, height, weight, targetWeight, bmi, goal, age, setActiveMealPlan, setActiveWorkoutPlan],
   );
 
+  const handleQuickReply = useCallback(
+    (text: string) => {
+      const msgToSend: IMessage[] = [
+        {
+          _id: `${Date.now()}`,
+          text,
+          createdAt: new Date(),
+          user: { _id: uid ?? 'guest', name: displayName || 'Sen' },
+        },
+      ];
+      onSend(msgToSend);
+    },
+    [uid, displayName, onSend],
+  );
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* iOS: KAV ile padding, Android: manual paddingBottom */}
@@ -297,19 +317,7 @@ export default function SohbetScreen() {
 
           {/* Hızlı eylem çipleri — son mesaj bot tarafındansa göster */}
           {messages.length > 0 && messages[0].user._id === BOT_ID && !streamingText && !isTyping && (
-            <QuickReplies
-              onSendMessage={(text) => {
-                const msgToSend: IMessage[] = [
-                  {
-                    _id: `${Date.now()}`,
-                    text,
-                    createdAt: new Date(),
-                    user: { _id: uid ?? 'guest', name: displayName || 'Sen' },
-                  },
-                ];
-                onSend(msgToSend);
-              }}
-            />
+            <QuickReplies onSendMessage={handleQuickReply} />
           )}
         </View>
       </KeyboardAvoidingView>
