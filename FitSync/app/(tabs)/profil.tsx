@@ -243,8 +243,8 @@ function WeeklyChart({ uid }: { uid: string }) {
       .finally(() => setLoading(false));
   }, [uid]);
 
-  const maxMeal    = Math.max(...data.map((d) => d.mealCount),    1);
-  const maxWorkout = Math.max(...data.map((d) => d.workoutCount), 1);
+  const maxMeal    = data.length > 0 ? Math.max(...data.map((d) => d.mealCount),    1) : 1;
+  const maxWorkout = data.length > 0 ? Math.max(...data.map((d) => d.workoutCount), 1) : 1;
 
   if (loading) {
     return (
@@ -359,7 +359,7 @@ export default function ProfilScreen() {
         {/* Avatar */}
         <View style={styles.header}>
           <View style={styles.avatarCircle}>
-            <Ionicons name="person" size={44} color="#FFFFFF" />
+            <Ionicons name="person" size={44} color={colors.white} />
           </View>
           <Text style={styles.name}>{displayName || 'Kullanıcı'}</Text>
           <Text style={styles.email}>{email || ''}</Text>
