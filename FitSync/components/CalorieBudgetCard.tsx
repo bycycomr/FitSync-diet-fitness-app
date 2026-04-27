@@ -361,9 +361,10 @@ export function CalorieBudgetCard({ uid, targetCalories = 2000 }: CalorieBudgetC
   };
 
   const consumed     = summary?.totalCalories    ?? 0;
-  const remaining    = Math.max((summary?.targetCalories ?? targetCalories) - consumed, 0);
-  const progress     = consumed / (summary?.targetCalories ?? targetCalories);
-  const isOverBudget = consumed > (summary?.targetCalories ?? targetCalories);
+  const targetCal    = (summary?.targetCalories ?? targetCalories) || 2000;
+  const remaining    = Math.max(targetCal - consumed, 0);
+  const progress     = consumed / targetCal;
+  const isOverBudget = consumed > targetCal;
   const dotColor     = isOverBudget ? colors.error : colors.primary;
 
   return (
@@ -414,11 +415,11 @@ export function CalorieBudgetCard({ uid, targetCalories = 2000 }: CalorieBudgetC
                 <View style={s.statRow}>
                   <View style={[s.statDot, { backgroundColor: colors.textMuted }]} />
                   <Text style={s.statLbl}>Hedef</Text>
-                  <Text style={s.statVal}>{summary?.targetCalories ?? targetCalories} kcal</Text>
+                  <Text style={s.statVal}>{targetCal} kcal</Text>
                 </View>
                 {isOverBudget && (
                   <Text style={[s.overBudget, { color: colors.error }]}>
-                    Hedef aşıldı! +{Math.round(consumed - (summary?.targetCalories ?? targetCalories))} kcal
+                    Hedef aşıldı! +{Math.round(consumed - targetCal)} kcal
                   </Text>
                 )}
               </View>
