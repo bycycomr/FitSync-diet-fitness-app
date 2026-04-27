@@ -16,7 +16,9 @@ import {
   getDocs,
   deleteDoc,
   doc,
+  writeBatch,
 } from 'firebase/firestore';
+import { db } from '@/firebaseConfig';
 import { useUserStore } from '@/store/userStore';
 import type { UserProfile, ChatMessage, ChatMessageInput, CompletionInput, DayStats, Achievement, StreakData, WaterIntakeInput, WaterStats, WorkoutHistory, WorkoutHistoryInput, PersonalRecord, PersonalRecordInput, ExerciseDetail, WeightLog, WeightLogInput, FoodLog, FoodLogInput, DailyCalorieSummary } from '@/types';
 
@@ -552,19 +554,23 @@ export async function updatePersonalRecords(
     }
 
     if (shouldUpdate) {
-      // Eski PR'ları paralel sil, ardından yenisini ekle
+      // Eski PR'ları sil + yeni PR'ı ekle — tek atomik batch işlemi
+      const batch = writeBatch(db);
+
       const oldPRDocs = snap.docs.filter(
         (d) => (d.data() as { exerciseName: string }).exerciseName === exercise.name
       );
+      oldPRDocs.forEach((oldDoc) => batch.delete(oldDoc.ref));
 
-      await Promise.all(oldPRDocs.map((oldDoc) => deleteDoc(oldDoc.ref)));
-
-      await addDoc(getPersonalRecordsCollection(uid), {
+      const newPRRef = doc(getPersonalRecordsCollection(uid));
+      batch.set(newPRRef, {
         exerciseName: exercise.name,
         maxSetsReps: newSetsReps,
         date: getTodayKey(),
         recordedAt: serverTimestamp(),
       });
+
+      await batch.commit();
     }
   }
 }
