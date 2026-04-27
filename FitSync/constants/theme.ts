@@ -1,51 +1,58 @@
 /**
- * Material Design 3 Token Sistemi
- * FitSync brandingi ile entegre renk, tipografi, boşluk ve radius token'ları
+ * FitSync Design System — Material Design 3 Token Sistemi
+ * Modern minimal purple palette (tokens.js kaynaklı)
+ * Primary: #7C4DFF (deep purple) | Secondary: #4CAF82 (brand green)
  */
 
 // ============================================================================
-// RENK TOKEN'LARI (Material Design 3)
+// RENK TOKEN'LARI
 // ============================================================================
 
 export const lightTheme = {
   colors: {
-    // Temel renkler (Primary / Secondary / Tertiary)
-    primary: '#4CAF82',
-    primaryDark: '#388E5E',
-    primaryContainer: '#C8E6C9',
-    secondary: '#5C6BC0',
-    secondaryContainer: '#C5CAE9',
+    // Temel renkler — Primary (purple)
+    primary: '#7C4DFF',
+    primaryDark: '#512DB8',
+    primarySoft: '#B39DDB',
+    primaryContainer: '#EDE7FF',
+    onPrimary: '#FFFFFF',
+    onPrimaryContainer: '#21005D',
+
+    // Secondary — Fitness green
+    secondary: '#4CAF82',
+    secondaryDark: '#388E5E',
+    secondaryContainer: '#C8E6C9',
+    onSecondary: '#FFFFFF',
+    onSecondaryContainer: '#1B5E20',
+
+    // Tertiary — Warm orange
     tertiary: '#FF7043',
     tertiaryContainer: '#FFD7CF',
+    onTertiary: '#FFFFFF',
+    onTertiaryContainer: '#5D1F08',
 
     // Surface ve arka plan
-    surface: '#FFFBFE',
-    surfaceDim: '#F5F6FA',
+    surface: '#F7F5FF',
+    surfaceDim: '#EDE8F8',
     surfaceBright: '#FFFFFF',
     surfaceContainerLowest: '#FFFFFF',
-    surfaceContainerLow: '#F5F6FA',
-    surfaceContainer: '#F0F0F0',
-    surfaceContainerHigh: '#E8E8E8',
-    surfaceContainerHighest: '#E0E0E0',
+    surfaceContainerLow: '#F4F0FF',
+    surfaceContainer: '#EDE8F8',
+    surfaceContainerHigh: '#E5DFFF',
+    surfaceContainerHighest: '#DDD6FF',
 
-    background: '#FFFBFE',
+    background: '#F7F5FF',
     cardBackground: '#FFFFFF',
 
     // Text / On Surface
     onSurface: '#1A1A2E',
-    onSurfaceVariant: '#9E9E9E',
-    onPrimary: '#FFFFFF',
-    onPrimaryContainer: '#1B5E20',
-    onSecondary: '#FFFFFF',
-    onSecondaryContainer: '#1A237E',
-    onTertiary: '#FFFFFF',
-    onTertiaryContainer: '#5D1F08',
+    onSurfaceVariant: '#8B7BAB',
 
-    // Error / Warning / Info
-    error: '#B3261E',
-    errorContainer: '#F9DEDC',
+    // Error
+    error: '#E53935',
+    errorContainer: '#FFF0F0',
     onError: '#FFFFFF',
-    onErrorContainer: '#410E0B',
+    onErrorContainer: '#E53935',
 
     warning: '#FF7043',
     warningContainer: '#FFD7CF',
@@ -54,128 +61,154 @@ export const lightTheme = {
     infoContainer: '#B3E5FC',
 
     // Sohbet özelleştirilmiş
-    chatUserBubble: '#4CAF82',
-    chatBotBubble: '#F5F6FA',
+    chatUserBubble: '#7C4DFF',
+    chatBotBubble: '#FFFFFF',
     chatUserText: '#FFFFFF',
     chatBotText: '#1A1A2E',
 
     // Workout özel
-    workoutColor: '#5C6BC0',
+    workoutColor: '#4CAF82',
 
     // Makro nütrisyonlar
-    proteinColor: '#5C6BC0',
+    proteinColor: '#7C4DFF',
     carbColor: '#FF7043',
     fatColor: '#FFB300',
 
     // Skeleton / Loading
-    skeletonBg: '#E0E0E0',
+    skeletonBg: '#EDE8F8',
 
     // Border ve focus
-    border: '#F0F0F0',
-    borderFocus: '#4CAF82',
-    inputBg: '#F7F8FA',
+    border: '#EDE8F8',
+    borderFocus: '#7C4DFF',
+    inputBg: '#F7F5FF',
 
     // Alias / Legacy uyumluluk
     text: '#1A1A2E',
-    textSecondary: '#9E9E9E',
-    textMuted: '#BDBDBD',
+    textSecondary: '#8B7BAB',
+    textMuted: '#C4B8DC',
     white: '#FFFFFF',
   },
 
   typography: {
+    fontFamily: {
+      regular: 'Poppins-Regular',
+      medium: 'Poppins-Medium',
+      semiBold: 'Poppins-SemiBold',
+      bold: 'Poppins-Bold',
+      extraBold: 'Poppins-ExtraBold',
+      black: 'Poppins-Black',
+      light: 'Poppins-Light',
+      thin: 'Poppins-Thin',
+      italic: 'Poppins-Italic',
+    },
     displayLarge: {
       fontSize: 57,
       lineHeight: 64,
-      fontWeight: '400',
+      fontWeight: '400' as const,
       letterSpacing: -0.25,
+      fontFamily: 'Poppins-Regular',
     },
     displayMedium: {
       fontSize: 45,
       lineHeight: 52,
-      fontWeight: '400',
+      fontWeight: '400' as const,
       letterSpacing: 0,
+      fontFamily: 'Poppins-Regular',
     },
     displaySmall: {
       fontSize: 36,
       lineHeight: 44,
-      fontWeight: '400',
+      fontWeight: '400' as const,
       letterSpacing: 0,
+      fontFamily: 'Poppins-Regular',
     },
 
     headlineLarge: {
       fontSize: 32,
       lineHeight: 40,
-      fontWeight: '400',
+      fontWeight: '400' as const,
       letterSpacing: 0,
+      fontFamily: 'Poppins-Regular',
     },
     headlineMedium: {
       fontSize: 28,
       lineHeight: 36,
-      fontWeight: '400',
+      fontWeight: '400' as const,
       letterSpacing: 0,
+      fontFamily: 'Poppins-Regular',
     },
     headlineSmall: {
       fontSize: 24,
       lineHeight: 32,
-      fontWeight: '400',
+      fontWeight: '400' as const,
       letterSpacing: 0,
+      fontFamily: 'Poppins-Regular',
     },
 
     titleLarge: {
       fontSize: 22,
       lineHeight: 28,
-      fontWeight: '500',
+      fontWeight: '500' as const,
       letterSpacing: 0,
+      fontFamily: 'Poppins-Medium',
     },
     titleMedium: {
       fontSize: 16,
       lineHeight: 24,
-      fontWeight: '500',
+      fontWeight: '500' as const,
       letterSpacing: 0.15,
+      fontFamily: 'Poppins-Medium',
     },
     titleSmall: {
       fontSize: 14,
       lineHeight: 20,
-      fontWeight: '500',
+      fontWeight: '500' as const,
       letterSpacing: 0.1,
+      fontFamily: 'Poppins-Medium',
     },
 
     bodyLarge: {
       fontSize: 16,
       lineHeight: 24,
-      fontWeight: '400',
+      fontWeight: '400' as const,
       letterSpacing: 0.5,
+      fontFamily: 'Poppins-Regular',
     },
     bodyMedium: {
       fontSize: 14,
       lineHeight: 20,
-      fontWeight: '400',
+      fontWeight: '400' as const,
       letterSpacing: 0.25,
+      fontFamily: 'Poppins-Regular',
     },
     bodySmall: {
       fontSize: 12,
       lineHeight: 16,
-      fontWeight: '400',
+      fontWeight: '400' as const,
       letterSpacing: 0.4,
+      fontFamily: 'Poppins-Regular',
     },
 
     labelLarge: {
       fontSize: 14,
       lineHeight: 20,
-      fontWeight: '500',
+      fontWeight: '500' as const,
       letterSpacing: 0.1,
+      fontFamily: 'Poppins-Medium',
     },
     labelMedium: {
       fontSize: 12,
       lineHeight: 16,
-      fontWeight: '500',
+      fontWeight: '500' as const,
       letterSpacing: 0.5,
+      fontFamily: 'Poppins-Medium',
     },
     labelSmall: {
       fontSize: 11,
       lineHeight: 16,
-      fontWeight: '500',
+      fontWeight: '500' as const,
       letterSpacing: 0.5,
+      fontFamily: 'Poppins-Medium',
     },
   },
 
@@ -193,22 +226,35 @@ export const lightTheme = {
     sm: 8,
     md: 12,
     lg: 16,
-    xl: 28,
+    xl: 20,
+    card: 18,
     full: 9999,
   },
 };
 
-// Dark mode (Material Design 3 dark palette)
+// ── Dark Mode ─────────────────────────────────────────────────────────────────
 export const darkTheme = {
   colors: {
-    // Temel renkler (açık versiyon)
-    primary: '#A8D5BA',
-    primaryDark: '#2E7D32',
-    primaryContainer: '#2D6A4F',
-    secondary: '#C5CAE9',
-    secondaryContainer: '#37474F',
+    // Primary (light purple for dark bg)
+    primary: '#B39DDB',
+    primaryDark: '#7C4DFF',
+    primarySoft: '#7C4DFF',
+    primaryContainer: '#3D2B6E',
+    onPrimary: '#21005D',
+    onPrimaryContainer: '#EDE7FF',
+
+    // Secondary — green remains
+    secondary: '#81C784',
+    secondaryDark: '#4CAF82',
+    secondaryContainer: '#2D6A4F',
+    onSecondary: '#1B5E20',
+    onSecondaryContainer: '#C8E6C9',
+
+    // Tertiary
     tertiary: '#FFB4A1',
     tertiaryContainer: '#5D1F08',
+    onTertiary: '#5D1F08',
+    onTertiaryContainer: '#FFB4A1',
 
     // Surface ve arka plan
     surface: '#121212',
@@ -226,14 +272,8 @@ export const darkTheme = {
     // Text / On Surface
     onSurface: '#E0E0E0',
     onSurfaceVariant: '#9E9E9E',
-    onPrimary: '#1B5E20',
-    onPrimaryContainer: '#A8D5BA',
-    onSecondary: '#1A237E',
-    onSecondaryContainer: '#C5CAE9',
-    onTertiary: '#5D1F08',
-    onTertiaryContainer: '#FFB4A1',
 
-    // Error / Warning / Info
+    // Error
     error: '#E53935',
     errorContainer: '#5D1F08',
     onError: '#FFFFFF',
@@ -246,16 +286,16 @@ export const darkTheme = {
     infoContainer: '#01579B',
 
     // Sohbet özelleştirilmiş
-    chatUserBubble: '#2D6A4F',
+    chatUserBubble: '#3D2B6E',
     chatBotBubble: '#1E1E1E',
     chatUserText: '#FFFFFF',
     chatBotText: '#E0E0E0',
 
     // Workout özel
-    workoutColor: '#7986CB',
+    workoutColor: '#81C784',
 
     // Makro nütrisyonlar
-    proteinColor: '#7986CB',
+    proteinColor: '#B39DDB',
     carbColor: '#FF8A65',
     fatColor: '#FFD54F',
 
@@ -264,7 +304,7 @@ export const darkTheme = {
 
     // Border ve focus
     border: '#333333',
-    borderFocus: '#388E5E',
+    borderFocus: '#7C4DFF',
     inputBg: '#2A2A2A',
 
     // Alias / Legacy uyumluluk
@@ -281,4 +321,5 @@ export const darkTheme = {
 
 export type ThemeType = typeof lightTheme;
 export type ThemeColorType = typeof lightTheme.colors;
+export type ThemeColors = typeof lightTheme.colors;
 export type ThemeTypographyType = typeof lightTheme.typography;
