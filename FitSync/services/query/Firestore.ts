@@ -136,6 +136,22 @@ export const buildFoodLogQuery = (uid: string, maxRecords = 100) =>
     limit(maxRecords),
   );
 
+/**
+ * Kullanıcıya ait bodyMeasurements (beden ölçüm günlüğü) alt koleksiyonuna erişir
+ */
+export const getBodyMeasurementsCollection = (uid: string): CollectionReference =>
+  collection(db, 'users', uid, 'bodyMeasurements');
+
+/**
+ * Beden ölçüm kayıtlarını yeniden eskiye sıralı getiren sorguyu oluşturur
+ */
+export const buildBodyMeasurementsQuery = (uid: string, maxRecords = 30) =>
+  query(
+    getBodyMeasurementsCollection(uid),
+    orderBy('recordedAt', 'desc'),
+    limit(maxRecords),
+  );
+
 // ─── Tarih Yardımcıları ───────────────────────────────────────────────────────
 
 /**

@@ -211,3 +211,15 @@ export interface WeightLog {
 
 export type WeightLogInput = Omit<WeightLog, 'id'>;
 
+export interface BodyMeasurement {
+  id: string;
+  date: string;           // 'YYYY-MM-DD'
+  waist?: number;         // bel (cm)
+  chest?: number;         // göğüs (cm)
+  hip?: number;           // kalça (cm)
+  arm?: number;           // kol (cm)
+  recordedAt: Timestamp | null;
+}
+
+export type BodyMeasurementInput = Omit<BodyMeasurement, 'id'>;
+

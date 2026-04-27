@@ -20,7 +20,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/firebaseConfig';
 import { useUserStore } from '@/store/userStore';
-import type { UserProfile, ChatMessage, ChatMessageInput, CompletionInput, DayStats, Achievement, StreakData, WaterIntakeInput, WaterStats, WorkoutHistory, WorkoutHistoryInput, PersonalRecord, PersonalRecordInput, ExerciseDetail, WeightLog, WeightLogInput, FoodLog, FoodLogInput, DailyCalorieSummary } from '@/types';
+import type { UserProfile, ChatMessage, ChatMessageInput, CompletionInput, DayStats, Achievement, StreakData, WaterIntakeInput, WaterStats, WorkoutHistory, WorkoutHistoryInput, PersonalRecord, PersonalRecordInput, ExerciseDetail, WeightLog, WeightLogInput, FoodLog, FoodLogInput, DailyCalorieSummary, BodyMeasurement, BodyMeasurementInput } from '@/types';
 
 // Re-export for use in other modules
 export type { DayStats };
@@ -33,6 +33,8 @@ import {
   getPersonalRecordsCollection,
   getWeightLogCollection,
   getFoodLogCollection,
+  getBodyMeasurementsCollection,
+  buildBodyMeasurementsQuery,
   buildChatHistoryQuery,
   buildCompletionsQuery,
   buildWaterQuery,
@@ -700,4 +702,41 @@ export async function fetchTodayFoodLog(
  */
 export async function deleteFoodLog(uid: string, logId: string): Promise<void> {
   await deleteDoc(doc(getFoodLogCollection(uid), logId));
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// BEDEN ÖLÇÜM GÜNLÜĞÜ (BODY MEASUREMENTS)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Beden ölçümü ekler. Aynı gün için kayıt varsa günceller (upsert).
+ */
+export async function addBodyMeasurement(
+  uid: string,
+  entry: Omit<BodyMeasurementInput, 'date' | 'recordedAt'>,
+): Promise<void> {
+  const date = getTodayKey();
+  const q = buildBodyMeasurementsQuery(uid, 30);
+  const snap = await getDocs(q);
+  const existing = snap.docs.find((d) => (d.data() as { date: string }).date === date);
+  if (existing) {
+    await updateDoc(existing.ref, { ...entry, recordedAt: serverTimestamp() });
+  } else {
+    await addDoc(getBodyMeasurementsCollection(uid), {
+      ...entry,
+      date,
+      recordedAt: serverTimestamp(),
+    } as BodyMeasurementInput);
+  }
+}
+
+/**
+ * Son N beden ölçüm kaydını eskiden yeniye sıralı döndürür.
+ */
+export async function fetchBodyMeasurements(uid: string, maxRecords = 30): Promise<BodyMeasurement[]> {
+  const q = buildBodyMeasurementsQuery(uid, maxRecords);
+  const snap = await getDocs(q);
+  return snap.docs
+    .map((d) => ({ id: d.id, ...(d.data() as Omit<BodyMeasurement, 'id'>) }))
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 }
