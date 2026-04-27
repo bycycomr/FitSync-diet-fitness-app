@@ -175,3 +175,74 @@ export async function sendTestWaterNotification(): Promise<void> {
     console.log('Test notification not available');
   }
 }
+
+// ─── Öğün Hatırlatıcıları ─────────────────────────────────────────────────────
+
+export type MealReminderType = 'breakfast' | 'lunch' | 'dinner';
+
+const MEAL_REMINDER_ID_KEY = (meal: MealReminderType) => `meal_reminder_id_${meal}`;
+const MEAL_REMINDER_ENABLED_KEY = (meal: MealReminderType) => `meal_reminder_enabled_${meal}`;
+
+const MEAL_DEFAULTS: Record<MealReminderType, { title: string; body: string }> = {
+  breakfast: { title: '🍳 Kahvaltı Zamanı!', body: 'Güne enerjili başlamak için kahvaltını yapma vakti.' },
+  lunch:     { title: '🥗 Öğle Yemeği Zamanı!', body: 'Öğle öğününü kaçırma, enerjini koru!' },
+  dinner:    { title: '🍽️ Akşam Yemeği Zamanı!', body: 'Akşam öğününü kaydetmeyi unutma.' },
+};
+
+/**
+ * Belirli bir öğün için günlük push notification planlar.
+ * Aynı öğünün önceki bildirimi varsa önce iptal eder.
+ */
+export async function scheduleMealReminder(
+  meal: MealReminderType,
+  hour: number,
+  minute: number,
+): Promise<void> {
+  try {
+    const Notifications = getNotifications();
+    if (!Notifications.scheduleNotificationAsync) return;
+
+    // Mevcut bildirimi iptal et
+    await cancelMealReminder(meal);
+
+    const { title, body } = MEAL_DEFAULTS[meal];
+    const id: string = await Notifications.scheduleNotificationAsync({
+      content: { title, body, sound: 'default' },
+      trigger: { type: 'calendar' as any, hour, minute, repeats: true },
+    });
+
+    await AsyncStorage.setItem(MEAL_REMINDER_ID_KEY(meal), id);
+    await AsyncStorage.setItem(MEAL_REMINDER_ENABLED_KEY(meal), 'enabled');
+  } catch (err) {
+    console.error(`Öğün hatırlatması planlama hatası (${meal}):`, err);
+  }
+}
+
+/**
+ * Belirli bir öğünün hatırlatmasını iptal eder.
+ */
+export async function cancelMealReminder(meal: MealReminderType): Promise<void> {
+  try {
+    const Notifications = getNotifications();
+    const id = await AsyncStorage.getItem(MEAL_REMINDER_ID_KEY(meal));
+    if (id && Notifications.cancelScheduledNotificationAsync) {
+      await Notifications.cancelScheduledNotificationAsync(id);
+    }
+    await AsyncStorage.removeItem(MEAL_REMINDER_ID_KEY(meal));
+    await AsyncStorage.setItem(MEAL_REMINDER_ENABLED_KEY(meal), 'disabled');
+  } catch (err) {
+    console.log(`Öğün hatırlatması iptal hatası (${meal}):`, err);
+  }
+}
+
+/**
+ * Belirli bir öğünün hatırlatmasının etkin olup olmadığını kontrol eder.
+ */
+export async function isMealReminderEnabled(meal: MealReminderType): Promise<boolean> {
+  try {
+    const status = await AsyncStorage.getItem(MEAL_REMINDER_ENABLED_KEY(meal));
+    return status === 'enabled';
+  } catch {
+    return false;
+  }
+}

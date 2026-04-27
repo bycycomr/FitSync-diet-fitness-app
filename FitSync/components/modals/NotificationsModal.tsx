@@ -13,6 +13,10 @@ import {
   cancelWaterReminder,
   isWaterReminderEnabled,
   requestNotificationPermissions,
+  scheduleMealReminder,
+  cancelMealReminder,
+  isMealReminderEnabled,
+  type MealReminderType,
 } from '@/services/notificationService';
 
 export interface NotificationsModalProps {
@@ -20,80 +24,99 @@ export interface NotificationsModalProps {
   onClose: () => void;
 }
 
+const MEAL_CONFIGS: { key: MealReminderType; label: string; hour: number; minute: number }[] = [
+  { key: 'breakfast', label: '🍳 Kahvaltı (08:00)', hour: 8,  minute: 0  },
+  { key: 'lunch',     label: '🥗 Öğle (12:30)',    hour: 12, minute: 30 },
+  { key: 'dinner',    label: '🍽️ Akşam (19:00)',   hour: 19, minute: 0  },
+];
+
 export function NotificationsModal({ visible, onClose }: NotificationsModalProps) {
   const { colors } = useTheme();
   const ms = getStyles(colors);
 
-  const [dailyReminder, setDailyReminder] = useState(false);
-  const [mealReminder, setMealReminder] = useState(false);
-  const [workoutAlert, setWorkoutAlert] = useState(false);
   const [waterReminder, setWaterReminder] = useState(false);
+  const [mealStates, setMealStates] = useState<Record<MealReminderType, boolean>>({
+    breakfast: false,
+    lunch: false,
+    dinner: false,
+  });
 
-  // Modal açıldığında su hatırlatma durumunu kontrol et
   useEffect(() => {
-    if (visible) {
-      isWaterReminderEnabled().then(setWaterReminder).catch(console.error);
-    }
+    if (!visible) return;
+    isWaterReminderEnabled().then(setWaterReminder).catch(console.error);
+    MEAL_CONFIGS.forEach(({ key }) => {
+      isMealReminderEnabled(key)
+        .then((on) => setMealStates((prev) => ({ ...prev, [key]: on })))
+        .catch(console.error);
+    });
   }, [visible]);
-
-  const toggleRow = (label: string, val: boolean, set: (v: boolean) => void) => (
-    <TouchableOpacity
-      style={ms.toggleRow}
-      onPress={() => {
-        set(!val);
-        Alert.alert('🔔 Bildirim', `${label} ${!val ? 'açıldı' : 'kapatıldı'}.`);
-      }}
-      activeOpacity={0.8}
-    >
-      <Text style={ms.toggleLabel}>{label}</Text>
-      <View style={[ms.toggle, val && ms.toggleOn]}>
-        <View style={[ms.toggleThumb, val && ms.toggleThumbOn]} />
-      </View>
-    </TouchableOpacity>
-  );
 
   const handleWaterReminderToggle = async () => {
     const newState = !waterReminder;
     setWaterReminder(newState);
-
     if (newState) {
-      // İzin iste ve hatırlatmayı başlat
       const permitted = await requestNotificationPermissions();
       if (permitted) {
         await scheduleWaterReminder();
-        Alert.alert('💧 Su Hatırlatması', 'Günde 09:00 - 21:00 arası her 2 saatte su içme hatırlatması alacaksın.');
+        Alert.alert('💧 Su Hatırlatması', 'Günde 09:00–21:00 arası her 2 saatte su içme hatırlatması alacaksın.');
       } else {
         setWaterReminder(false);
         Alert.alert('⚠️ İzin Reddedildi', 'Bildirim izni gerekli. Cihaz ayarlarından etkinleştir.');
       }
     } else {
-      // Hatırlatmayı iptal et
       await cancelWaterReminder();
-      Alert.alert('💧 Su Hatırlatması', 'Su içme hatırlatmaları kapatıldı.');
     }
   };
+
+  const handleMealToggle = async (meal: MealReminderType, hour: number, minute: number) => {
+    const newState = !mealStates[meal];
+    setMealStates((prev) => ({ ...prev, [meal]: newState }));
+    if (newState) {
+      const permitted = await requestNotificationPermissions();
+      if (permitted) {
+        await scheduleMealReminder(meal, hour, minute);
+      } else {
+        setMealStates((prev) => ({ ...prev, [meal]: false }));
+        Alert.alert('⚠️ İzin Reddedildi', 'Bildirim izni gerekli. Cihaz ayarlarından etkinleştir.');
+      }
+    } else {
+      await cancelMealReminder(meal);
+    }
+  };
+
+  const ToggleRow = ({ label, value, onPress }: { label: string; value: boolean; onPress: () => void }) => (
+    <TouchableOpacity style={ms.toggleRow} onPress={onPress} activeOpacity={0.8}>
+      <Text style={ms.toggleLabel}>{label}</Text>
+      <View style={[ms.toggle, value && ms.toggleOn]}>
+        <View style={[ms.toggleThumb, value && ms.toggleThumbOn]} />
+      </View>
+    </TouchableOpacity>
+  );
 
   return (
     <MenuModal visible={visible} onClose={onClose} title="Bildirimler">
       <View style={ms.section}>
-        <Text style={ms.sectionLabel}>🔔 Bildirim Tercihleri</Text>
-        <Text style={ms.hint}>Expo Notifications izni gerektirir. Cihaz ayarlarından da yönetebilirsin.</Text>
-        {toggleRow('Günlük Hatırlatıcı (09:00)', dailyReminder, setDailyReminder)}
-        <View style={ms.divider} />
-        {toggleRow('Öğün Hatırlatıcıları', mealReminder, setMealReminder)}
-        <View style={ms.divider} />
-        {toggleRow('Antrenman Uyarıları', workoutAlert, setWorkoutAlert)}
-        <View style={ms.divider} />
-        <TouchableOpacity
-          style={ms.toggleRow}
+        <Text style={ms.sectionLabel}>💧 Su İçme Hatırlatıcısı</Text>
+        <ToggleRow
+          label="Her 2 saatte bir (09:00–21:00)"
+          value={waterReminder}
           onPress={handleWaterReminderToggle}
-          activeOpacity={0.8}
-        >
-          <Text style={ms.toggleLabel}>💧 Su İçme Hatırlatıcıları (Her 2 saat)</Text>
-          <View style={[ms.toggle, waterReminder && ms.toggleOn]}>
-            <View style={[ms.toggleThumb, waterReminder && ms.toggleThumbOn]} />
+        />
+      </View>
+
+      <View style={[ms.section, { marginTop: 16 }]}>
+        <Text style={ms.sectionLabel}>🍽️ Öğün Hatırlatıcıları</Text>
+        <Text style={ms.hint}>Her öğünü bağımsız olarak açıp kapatabilirsin.</Text>
+        {MEAL_CONFIGS.map(({ key, label, hour, minute }, idx) => (
+          <View key={key}>
+            {idx > 0 && <View style={ms.divider} />}
+            <ToggleRow
+              label={label}
+              value={mealStates[key]}
+              onPress={() => handleMealToggle(key, hour, minute)}
+            />
           </View>
-        </TouchableOpacity>
+        ))}
       </View>
     </MenuModal>
   );
