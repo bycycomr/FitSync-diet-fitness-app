@@ -4,7 +4,7 @@
  * Su içme takibi kartı — günlük bardak sayacı ve haftalık grafik
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -14,14 +14,13 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '@/hooks/useTheme';
+import { useTheme, ThemeColors } from '@/hooks/useTheme';
 import { addWaterIntake, removeLastWaterIntake, fetchTodayWaterIntake, fetchWeeklyWaterIntake } from '@/services/userService';
-import { useUserStore } from '@/store/userStore';
 
 const GLASS_ICON_SIZE = 24;
 const GLASS_SPACING = 12;
 
-const getGlassStyles = (colors: any) =>
+const getGlassStyles = (colors: ThemeColors) =>
   StyleSheet.create({
     glassButton: {
       width: 48,
@@ -83,7 +82,7 @@ interface WeeklyWaterBarProps {
   isToday: boolean;
 }
 
-const getWeeklyBarStyles = (colors: any) =>
+const getWeeklyBarStyles = (colors: ThemeColors) =>
   StyleSheet.create({
     weeklyBarContainer: {
       alignItems: 'center',
@@ -178,59 +177,67 @@ export function WaterCard({ uid }: WaterCardProps) {
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
 
-  // Su statistiklerini yükle
+  // Unmount sonrası state güncellemesini önler
+  const mountedRef = useRef(true);
   useEffect(() => {
-    loadWaterData();
-  }, [uid]);
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
-  async function loadWaterData() {
+  const loadWaterData = useCallback(async () => {
     try {
       setLoading(true);
       const stats = await fetchTodayWaterIntake(uid);
-      setWaterStats(stats);
-
       const weekly = await fetchWeeklyWaterIntake(uid);
+      if (!mountedRef.current) return;
+      setWaterStats(stats);
       setWeeklyData(weekly);
     } catch (err) {
       console.error('Su veri yükleme hatası:', err);
     } finally {
-      setLoading(false);
+      if (mountedRef.current) setLoading(false);
     }
-  }
+  }, [uid]);
 
-  async function handleAddWater() {
+  useEffect(() => {
+    loadWaterData();
+  }, [loadWaterData]);
+
+  const handleAddWater = useCallback(async () => {
     try {
       setAdding(true);
       await addWaterIntake(uid);
       const stats = await fetchTodayWaterIntake(uid);
+      if (!mountedRef.current) return;
       setWaterStats(stats);
     } catch (err) {
       console.error('Su ekleme hatası:', err);
     } finally {
-      setAdding(false);
+      if (mountedRef.current) setAdding(false);
     }
-  }
+  }, [uid]);
 
-  async function handleRemoveWater() {
+  const handleRemoveWater = useCallback(async () => {
     try {
       setAdding(true);
       await removeLastWaterIntake(uid);
       const stats = await fetchTodayWaterIntake(uid);
+      if (!mountedRef.current) return;
       setWaterStats(stats);
     } catch (err) {
       console.error('Su silme hatası:', err);
     } finally {
-      setAdding(false);
+      if (mountedRef.current) setAdding(false);
     }
-  }
+  }, [uid]);
 
-  function handleGlassPress(isFilled: boolean) {
+  const handleGlassPress = useCallback((isFilled: boolean) => {
     if (isFilled) {
       handleRemoveWater();
     } else {
       handleAddWater();
     }
-  }
+  }, [handleAddWater, handleRemoveWater]);
 
   const progressPercent = Math.min((waterStats.todayGlasses / waterStats.dailyGoal) * 100, 100);
 
@@ -338,7 +345,7 @@ export function WaterCard({ uid }: WaterCardProps) {
   );
 }
 
-const getStyles = (colors: any) =>
+const getStyles = (colors: ThemeColors) =>
   StyleSheet.create({
     container: {
       borderRadius: 20,
