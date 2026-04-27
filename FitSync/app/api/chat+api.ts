@@ -181,7 +181,8 @@ function toGroqMessages(systemPrompt: string, messages: GeminiMessage[]): GroqMe
 export async function POST(request: Request): Promise<Response> {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
-    return Response.json({ error: 'Groq API anahtarı yapılandırılmamış.' }, { status: 500 });
+    console.error('GROQ_API_KEY ortam değişkeni tanımlı değil.');
+    return Response.json({ error: 'Servis geçici olarak kullanılamıyor.' }, { status: 503 });
   }
 
   let body: ChatRequestBody;
