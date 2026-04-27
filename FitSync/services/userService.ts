@@ -641,7 +641,7 @@ export async function fetchWeightLog(uid: string, maxRecords = 30): Promise<Weig
   const snap = await getDocs(q);
   return snap.docs
     .map((d) => ({ id: d.id, ...(d.data() as Omit<WeightLog, 'id'>) }))
-    .sort((a, b) => a.date.localeCompare(b.date)); // eskiden yeniye sırala (grafik için)
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()); // eskiden yeniye sırala (grafik için)
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
