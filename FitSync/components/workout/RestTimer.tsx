@@ -8,7 +8,7 @@
  * - "Geç" ile erken çıkılabilir
  */
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -151,11 +151,11 @@ export function RestTimer({ visible, initialSeconds = 60, onComplete, onDismiss 
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [visible, total]);
 
-  const changePreset = (secs: number) => {
+  const changePreset = useCallback((secs: number) => {
     if (intervalRef.current) clearInterval(intervalRef.current);
     setTotal(secs);
     setRemaining(secs);
-  };
+  }, []);
 
   const progress = total > 0 ? remaining / total : 0;
   const mins = Math.floor(remaining / 60);
@@ -202,7 +202,7 @@ export function RestTimer({ visible, initialSeconds = 60, onComplete, onDismiss 
                 onPress={() => changePreset(p)}
                 activeOpacity={0.8}
               >
-                <Text style={[s.presetText, total === p && { color: '#fff' }]}>{p}sn</Text>
+                <Text style={[s.presetText, total === p && { color: colors.white }]}>{p}sn</Text>
               </TouchableOpacity>
             ))}
           </View>

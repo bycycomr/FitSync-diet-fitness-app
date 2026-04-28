@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -22,6 +22,13 @@ export function MealRow({ meal, totalCals, onComplete }: MealRowProps) {
   const [expanded, setExpanded] = useState(false);
   const [done, setDone] = useState(false);
   const pct = totalCals > 0 ? Math.round((meal.calories / totalCals) * 100) : 0;
+
+  const handleCheck = useCallback(() => {
+    if (!done) {
+      setDone(true);
+      onComplete?.();
+    }
+  }, [done, onComplete]);
 
   return (
     <View style={styles.card}>
@@ -50,12 +57,7 @@ export function MealRow({ meal, totalCals, onComplete }: MealRowProps) {
           </View>
         </View>
         <TouchableOpacity
-          onPress={() => {
-            if (!done) {
-              setDone(true);
-              onComplete?.();
-            }
-          }}
+          onPress={handleCheck}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           style={[styles.checkBtn, done && { backgroundColor: colors.primary }]}
         >

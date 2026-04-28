@@ -7,23 +7,11 @@ import {
   KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  GiftedChat,
-  IMessage,
-  Day,
-} from 'react-native-gifted-chat';
+import { GiftedChat, IMessage, Day } from 'react-native-gifted-chat';
 import { useUserStore } from '@/store/userStore';
-import {
-  addChatMessage,
-  fetchChatHistory,
-  fetchTodayFoodLog,
-  fetchWeightLog,
-  fetchWorkoutHistory,
-  safeToDate,
-} from '@/services/userService';
-import { sendChatMessageStream, type GeminiMessage, type RichContext } from '@/services/geminiService';
-import { parsePlanFromText, userAskedForPlan, mightContainPlan } from '@/services/parseService';
+import { fetchChatHistory, safeToDate } from '@/services/userService';
 import { useTheme, ThemeColors } from '@/hooks/useTheme';
+import { useChatSend } from '@/hooks/useChatSend';
 import { CustomBubble } from '@/components/chat/CustomBubble';
 import { CustomInputToolbar } from '@/components/chat/CustomInputToolbar';
 import { CustomSend } from '@/components/chat/CustomSend';
@@ -32,11 +20,8 @@ import { TypingIndicator } from '@/components/chat/TypingIndicator';
 import { StreamingBubble } from '@/components/chat/StreamingBubble';
 import { QuickReplies } from '@/components/chat/QuickReplies';
 import { BOT_ID, BOT_USER } from '@/components/chat/constants';
-import { makeMsg, pruneHistory, buildWelcomeMessage } from '@/components/chat/utils';
+import { buildWelcomeMessage } from '@/components/chat/utils';
 
-// ─── Ana Ekran ────────────────────────────────────────────────────────────────
-
-// _layout.tsx'te tanımlanan gerçek tab bar yükseklikleri
 const TAB_BAR_IOS     = 88;
 const TAB_BAR_ANDROID = 64;
 
@@ -45,245 +30,83 @@ export default function SohbetScreen() {
   const styles = getScreenStyles(colors);
   const insets = useSafeAreaInsets();
 
-  // Dinamik karşılama mesajı — saate ve kullanıcı verisine göre
-  const getDynamicWelcomeMsg = (userWeight?: number | null) => {
-    const hour = new Date().getHours();
-    return buildWelcomeMessage(hour, userWeight ? { weight: userWeight } : undefined);
-  };
-
-  // Android: Keyboard API ile doğrudan klavye yüksekliğini dinle
-  const [androidKbPadding, setAndroidKbPadding] = useState(0);
-
-  useEffect(() => {
-    if (Platform.OS !== 'android') return;
-
-    const show = Keyboard.addListener('keyboardDidShow', (e) => {
-      const overlap = Math.max(
-        e.endCoordinates.height - TAB_BAR_ANDROID - insets.bottom,
-        0,
-      );
-      setAndroidKbPadding(overlap);
-    });
-    const hide = Keyboard.addListener('keyboardDidHide', () => {
-      setAndroidKbPadding(0);
-    });
-
-    return () => {
-      show.remove();
-      hide.remove();
-    };
-  }, [insets.bottom]);
-
-  const uid = useUserStore((s) => s.uid);
-  const displayName = useUserStore((s) => s.displayName);
-  const height = useUserStore((s) => s.height);
-  const weight = useUserStore((s) => s.weight);
-  const targetWeight = useUserStore((s) => s.targetWeight);
-  const bmi = useUserStore((s) => s.bmi);
-  const goal = useUserStore((s) => s.goal);
-  const age = useUserStore((s) => s.age);
+  // Zustand selectors
+  const uid            = useUserStore((s) => s.uid);
+  const displayName    = useUserStore((s) => s.displayName);
+  const height         = useUserStore((s) => s.height);
+  const weight         = useUserStore((s) => s.weight);
+  const targetWeight   = useUserStore((s) => s.targetWeight);
+  const bmi            = useUserStore((s) => s.bmi);
+  const goal           = useUserStore((s) => s.goal);
+  const age            = useUserStore((s) => s.age);
   const last5DaysStats = useUserStore((s) => s.last5DaysStats);
-  const setActiveMealPlan = useUserStore((s) => s.setActiveMealPlan);
+  const setActiveMealPlan    = useUserStore((s) => s.setActiveMealPlan);
   const setActiveWorkoutPlan = useUserStore((s) => s.setActiveWorkoutPlan);
 
-  // Gemini'ye gönderilecek konuşma geçmişi (role: 'user' | 'model')
-  const geminiHistory = React.useRef<GeminiMessage[]>([]);
-  // Eş zamanlı parse işlemlerini önler (race condition guard)
-  const isParsingRef = React.useRef(false);
-
-  // uid değişince (farklı kullanıcı oturumu) geçmişi sıfırla — veri sızmasını önler
-  useEffect(() => {
-    geminiHistory.current = [];
-  }, [uid]);
-
+  // UI state
   const [messages, setMessages] = useState<IMessage[]>([]);
-  const [isTyping, setIsTyping] = useState(false);
-  const [streamingText, setStreamingText] = useState('');
   const [historyLoading, setHistoryLoading] = useState(true);
   const [welcomeInitialized, setWelcomeInitialized] = useState(false);
+  const [androidKbPadding, setAndroidKbPadding] = useState(0);
 
-  // Hoş geldin mesajını başlangıçta ayarla
+  // Sohbet gönderme mantığı — custom hook'a taşındı
+  const { isTyping, streamingText, onSend, handleQuickReply } = useChatSend({
+    uid,
+    displayName,
+    height,
+    weight,
+    targetWeight,
+    bmi,
+    goal,
+    age,
+    last5DaysStats,
+    setMessages,
+    setActiveMealPlan,
+    setActiveWorkoutPlan,
+  });
+
+  // Android: klavye yüksekliğini doğrudan dinle
   useEffect(() => {
-    if (!welcomeInitialized) {
-      setMessages([getDynamicWelcomeMsg(weight)]);
-      setWelcomeInitialized(true);
-    }
+    if (Platform.OS !== 'android') return;
+    const show = Keyboard.addListener('keyboardDidShow', (e) => {
+      setAndroidKbPadding(Math.max(e.endCoordinates.height - TAB_BAR_ANDROID - insets.bottom, 0));
+    });
+    const hide = Keyboard.addListener('keyboardDidHide', () => setAndroidKbPadding(0));
+    return () => { show.remove(); hide.remove(); };
+  }, [insets.bottom]);
+
+  // Dinamik karşılama mesajı
+  useEffect(() => {
+    if (welcomeInitialized) return;
+    const hour = new Date().getHours();
+    setMessages([buildWelcomeMessage(hour, weight ? { weight } : undefined)]);
+    setWelcomeInitialized(true);
   }, [welcomeInitialized, weight]);
 
+  // Firestore geçmiş yükle
   useEffect(() => {
-    if (!uid) {
-      setHistoryLoading(false);
-      return;
-    }
+    if (!uid) { setHistoryLoading(false); return; }
 
-    fetchChatHistory(uid, 60).then((history) => {
-      if (history.length === 0) {
-        setHistoryLoading(false);
-        return;
-      }
+    const hour = new Date().getHours();
+    const welcomeMsg = buildWelcomeMessage(hour, weight ? { weight } : undefined);
 
-      const loaded: IMessage[] = history.map((m) => ({
-        _id: m.id,
-        text: m.text,
-        createdAt: safeToDate(m.createdAt),
-        user: m.role === 'assistant'
-          ? BOT_USER
-          : { _id: uid, name: displayName },
-      }));
-
-      // GiftedChat en yeni mesajı başa koyar
-      setMessages(GiftedChat.append([getDynamicWelcomeMsg(weight)], loaded.reverse()));
-      setHistoryLoading(false);
-    }).catch(console.error).finally(() => setHistoryLoading(false));
+    fetchChatHistory(uid, 60)
+      .then((history) => {
+        if (history.length === 0) return;
+        const loaded: IMessage[] = history.map((m) => ({
+          _id: m.id,
+          text: m.text,
+          createdAt: safeToDate(m.createdAt),
+          user: m.role === 'assistant' ? BOT_USER : { _id: uid, name: displayName },
+        }));
+        setMessages(GiftedChat.append([welcomeMsg], loaded.reverse()));
+      })
+      .catch(console.error)
+      .finally(() => setHistoryLoading(false));
   }, [uid, weight, displayName]);
-
-  const onSend = useCallback(
-    async (newMessages: IMessage[] = []) => {
-      const userMsg = newMessages[0];
-      setMessages((prev) => GiftedChat.append(prev, newMessages));
-      setIsTyping(true);
-
-      // Kullanıcı mesajını Firestore'a kaydet (fire-and-forget)
-      if (uid) {
-        addChatMessage(uid, {
-          role: 'user',
-          text: userMsg.text,
-          createdAt: null,
-        }).catch(console.error);
-      }
-
-      // Gemini geçmişine kullanıcı mesajını ekle
-      geminiHistory.current.push({ role: 'user', text: userMsg.text });
-
-      try {
-        // Token limitine yaklaşmasını önlemek için geçmiş buda
-        // İlk 2 mesaj (anchor) + son 20 mesaj koru, ortayı sil
-        geminiHistory.current = pruneHistory(geminiHistory.current, 20);
-
-        // Zengin bağlam: bugünkü öğünler, son kilo, haftalık antrenmanlar
-        let richContext: RichContext = {};
-        if (uid) {
-          try {
-            // Hedeflenen kalori: basit formül (e.g., body weight × 30 kcal/kg)
-            const targetCalories = weight ? Math.round(weight * 30) : 2000;
-            const todayFood = await fetchTodayFoodLog(uid, targetCalories);
-            if (todayFood) richContext.todayCalorieSummary = todayFood;
-          } catch {
-            // Sessiz başarısızlık — eksik bağlam AI'ı çok kötü etkilemez
-          }
-
-          try {
-            const weightLogs = await fetchWeightLog(uid, 1);
-            if (weightLogs && weightLogs.length > 0) {
-              richContext.latestWeight = weightLogs[0];
-            }
-          } catch {
-            // Sessiz başarısızlık
-          }
-
-          try {
-            const workoutLogs = await fetchWorkoutHistory(uid, 7);
-            if (workoutLogs && workoutLogs.length > 0) {
-              richContext.weeklyWorkoutHistory = workoutLogs;
-            }
-          } catch {
-            // Sessiz başarısızlık
-          }
-        }
-
-        const botText = await sendChatMessageStream(
-          geminiHistory.current,
-          { displayName: displayName || undefined, height, weight, targetWeight, bmi, goal, age },
-          last5DaysStats,
-          (accumulated) => {
-            // İlk chunk geldiğinde typing göstergesini kaldır
-            if (isTyping) setIsTyping(false);
-            setStreamingText(accumulated);
-          },
-          richContext,
-        );
-
-        // Streaming bitti — balonu temizle ve gerçek mesajı ekle
-        setStreamingText('');
-        setIsTyping(false);
-
-        // Gemini geçmişine bot yanıtını ekle
-        geminiHistory.current.push({ role: 'model', text: botText });
-
-        const botMsg = makeMsg(botText, true, uid ?? BOT_ID, 'FitSync AI');
-        setMessages((prev) => GiftedChat.append(prev, [botMsg]));
-
-        if (uid) {
-          addChatMessage(uid, {
-            role: 'assistant',
-            text: botText,
-            createdAt: null,
-          }).catch(console.error);
-        }
-
-        // Yanıt bir plan içeriyorsa arka planda parse et (fire-and-forget)
-        // Optimization: Sadece kullanıcı plan istedi VEYA bot yanıtı plan içeriyorsa parse et
-        const shouldParse = userAskedForPlan(userMsg.text) || mightContainPlan(botText);
-        if (shouldParse && !isParsingRef.current) {
-          isParsingRef.current = true;
-          parsePlanFromText(botText).then((parsed) => {
-            if (!parsed) return;
-            if (parsed.type === 'meal' && parsed.mealPlan) {
-              setActiveMealPlan(parsed.mealPlan);
-            } else if (parsed.type === 'workout' && parsed.workoutPlan) {
-              setActiveWorkoutPlan(parsed.workoutPlan);
-            }
-          }).catch(console.error).finally(() => {
-            isParsingRef.current = false;
-          });
-        }
-      } catch (err) {
-        setStreamingText('');
-        const errText = err instanceof Error ? err.message : 'Bir hata oluştu. Lütfen tekrar dene.';
-        const errMsg = makeMsg(errText, true, uid ?? BOT_ID, 'FitSync AI');
-
-        // Hata mesajını işaretle ve retry callback'i ekle
-        const errorMsgWithRetry = {
-          ...errMsg,
-          _id: `error_${Date.now()}`,
-          metadata: {
-            onRetry: () => {
-              // Hatalı mesajı geçmişten kaldır ve yeniden gönder
-              geminiHistory.current.pop();
-              onSend([userMsg]);
-            },
-          },
-        };
-
-        setMessages((prev) => GiftedChat.append(prev, [errorMsgWithRetry]));
-        // Hatalı mesajı geçmişe ekleme — tutarlılığı koru
-        geminiHistory.current.pop();
-      } finally {
-        setIsTyping(false);
-        setStreamingText('');
-      }
-    },
-    [uid, displayName, height, weight, targetWeight, bmi, goal, age, setActiveMealPlan, setActiveWorkoutPlan],
-  );
-
-  const handleQuickReply = useCallback(
-    (text: string) => {
-      const msgToSend: IMessage[] = [
-        {
-          _id: `${Date.now()}`,
-          text,
-          createdAt: new Date(),
-          user: { _id: uid ?? 'guest', name: displayName || 'Sen' },
-        },
-      ];
-      onSend(msgToSend);
-    },
-    [uid, displayName, onSend],
-  );
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* iOS: KAV ile padding, Android: manual paddingBottom */}
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -297,6 +120,7 @@ export default function SohbetScreen() {
               <View style={[styles.historyLoaderBar, { width: '80%' }]} />
             </View>
           )}
+
           <GiftedChat
             messages={messages}
             onSend={onSend}
@@ -320,7 +144,6 @@ export default function SohbetScreen() {
             keyboardShouldPersistTaps="handled"
           />
 
-          {/* Hızlı eylem çipleri — son mesaj bot tarafındansa göster */}
           {messages.length > 0 && messages[0].user._id === BOT_ID && !streamingText && !isTyping && (
             <QuickReplies onSendMessage={handleQuickReply} />
           )}
@@ -330,12 +153,9 @@ export default function SohbetScreen() {
   );
 }
 
-// ─── Stiller ─────────────────────────────────────────────────────────────────
-
 const getScreenStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   messagesContainer: { backgroundColor: colors.background, paddingBottom: 4 },
-
   historyLoader: {
     position: 'absolute',
     top: 16,
@@ -352,7 +172,6 @@ const getScreenStyles = (colors: ThemeColors) => StyleSheet.create({
     backgroundColor: colors.skeletonBg,
     opacity: 0.8,
   },
-
   textInput: {
     backgroundColor: colors.inputBg,
     borderRadius: 22,

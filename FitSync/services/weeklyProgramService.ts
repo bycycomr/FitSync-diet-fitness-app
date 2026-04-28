@@ -54,17 +54,33 @@ export async function generateWeeklyProgram(
       throw new Error(`API error: ${response.status}`);
     }
 
-    const data = await response.json();
+    let data: { text?: string };
+    try {
+      data = await response.json();
+    } catch (parseErr) {
+      console.error('[WeeklyProgram] API yanıtı JSON olarak ayrıştırılamadı:', parseErr);
+      throw new Error('API yanıtı geçersiz format döndürdü');
+    }
     const responseText = data.text || '';
 
     // JSON parse
-    let jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       throw new Error('JSON yanıtı bulunamadı');
     }
 
-    const parsed = JSON.parse(jsonMatch[0]);
+    let parsed: { weeklyProgram?: { days: WeeklyProgramDay[] } };
+    try {
+      parsed = JSON.parse(jsonMatch[0]);
+    } catch (parseErr) {
+      console.error('[WeeklyProgram] Plan JSON ayrıştırma hatası:', parseErr, '— Ham:', jsonMatch[0].slice(0, 200));
+      throw new Error('Haftalık program verisi ayrıştırılamadı');
+    }
     const weeklyData = parsed.weeklyProgram;
+
+    if (!weeklyData?.days || weeklyData.days.length === 0) {
+      throw new Error('Haftalık program günleri bulunamadı');
+    }
 
     // Herbir günün verisini MealPlan + WorkoutPlan'a çevir
     const mealPlans: MealPlan[] = [];

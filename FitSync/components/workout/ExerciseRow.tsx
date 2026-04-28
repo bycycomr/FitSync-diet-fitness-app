@@ -7,7 +7,7 @@
  * - Tüm setler bitince egzersiz tamamlanmış sayılır
  */
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -90,13 +90,16 @@ export function ExerciseRow({
     [checked, completedSets, setCount, scaleAnim, onToggle, onSetComplete, exercise.restSeconds],
   );
 
-  // Alt başlık metni
-  const subtitle: string[] = [];
-  if (exercise.sets && exercise.reps)
-    subtitle.push(`${exercise.sets} set × ${exercise.reps} tekrar`);
-  else if (exercise.sets) subtitle.push(`${exercise.sets} set`);
-  if (exercise.durationSeconds)
-    subtitle.push(`${exercise.durationSeconds}sn`);
+  // Alt başlık metni — bağımlılıklar değişmedikçe yeniden hesaplanmaz
+  const subtitle = useMemo(() => {
+    const parts: string[] = [];
+    if (exercise.sets && exercise.reps)
+      parts.push(`${exercise.sets} set × ${exercise.reps} tekrar`);
+    else if (exercise.sets) parts.push(`${exercise.sets} set`);
+    if (exercise.durationSeconds)
+      parts.push(`${exercise.durationSeconds}sn`);
+    return parts;
+  }, [exercise.sets, exercise.reps, exercise.durationSeconds]);
 
   return (
     <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
@@ -139,7 +142,7 @@ export function ExerciseRow({
                     activeOpacity={0.75}
                   >
                     {done ? (
-                      <Ionicons name="checkmark" size={10} color="#fff" />
+                      <Ionicons name="checkmark" size={10} color={colors.white} />
                     ) : (
                       <Text style={styles.setBtnText}>{si + 1}</Text>
                     )}
