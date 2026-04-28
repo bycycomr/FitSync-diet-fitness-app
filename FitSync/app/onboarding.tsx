@@ -37,7 +37,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useUserStore } from '@/store/userStore';
 import { updateUserProfile } from '@/services/userService';
-import { useTheme } from '@/hooks/useTheme';
+import { useTheme, ThemeColors } from '@/hooks/useTheme';
 import type { Goal } from '@/types';
 
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -152,7 +152,7 @@ function Step2Metrics({
   height: string; setHeight: (v: string) => void;
   weight: string; setWeight: (v: string) => void;
   age: string;    setAge: (v: string) => void;
-  colors: any;
+  colors: ThemeColors;
 }) {
   const primaryColor = colors.warning || '#FF7043';
   return (
@@ -207,7 +207,7 @@ function Step3Goal({
 }: {
   targetWeight: string; setTargetWeight: (v: string) => void;
   goal: Goal | null;    setGoal: (g: Goal) => void;
-  primaryColor: string; colors: any;
+  primaryColor: string; colors: ThemeColors;
   goalOptions: Array<{ value: Goal; label: string; sub: string; icon: any; color: string }>;
 }) {
   return (

@@ -427,7 +427,7 @@ export default function RegisterScreen() {
   );
 }
 
-const getStyles = (colors: any) => StyleSheet.create({
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   scroll: { flexGrow: 1, paddingHorizontal: 22, paddingVertical: 24, paddingBottom: 40, gap: 24, justifyContent: 'center' },
 
