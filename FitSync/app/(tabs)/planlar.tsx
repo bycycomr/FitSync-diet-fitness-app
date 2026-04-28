@@ -27,6 +27,7 @@ import { WorkoutPlanCard } from '@/components/WorkoutPlanCard';
 import { WorkoutHistoryCard } from '@/components/WorkoutHistoryCard';
 import { CalorieBudgetCard } from '@/components/CalorieBudgetCard';
 import { addCompletion, fetchWeeklyCompletions, addWorkoutHistory, fetchWorkoutHistory, fetchPersonalRecords, updatePersonalRecords } from '@/services/userService';
+import { CustomWorkoutBuilder } from '@/components/CustomWorkoutBuilder';
 import type { WorkoutHistory, PersonalRecord } from '@/types';
 import { useTheme, ThemeColors } from '@/hooks/useTheme';
 import { analyzeMealFromImage, createMealPlanFromAnalysis } from '@/services/visionService';
@@ -411,6 +412,16 @@ export default function PlanlarScreen() {
           />
         )}
 
+        {/* ── Özel Antrenman Şablonları ──────────────────────────────────── */}
+        {uid && (
+          <View style={styles.section}>
+            <CustomWorkoutBuilder
+              uid={uid}
+              onLoad={(plan) => setActiveWorkoutPlan(plan)}
+            />
+          </View>
+        )}
+
         <View style={{ height: 32 }} />
       </ScrollView>
     </SafeAreaView>
@@ -444,4 +455,15 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
     justifyContent: 'center',
   },
   photoBtnText: { color: '#FFF', fontSize: 14, fontWeight: '600' },
+  section: {
+    backgroundColor: colors.cardBackground,
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 14,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 8,
+    elevation: 2,
+  },
 });

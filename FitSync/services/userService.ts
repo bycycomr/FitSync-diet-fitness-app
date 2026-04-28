@@ -20,7 +20,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/firebaseConfig';
 import { useUserStore } from '@/store/userStore';
-import type { UserProfile, ChatMessage, ChatMessageInput, CompletionInput, DayStats, Achievement, StreakData, WaterIntakeInput, WaterStats, WorkoutHistory, WorkoutHistoryInput, PersonalRecord, PersonalRecordInput, ExerciseDetail, WeightLog, WeightLogInput, FoodLog, FoodLogInput, DailyCalorieSummary, BodyMeasurement, BodyMeasurementInput } from '@/types';
+import type { UserProfile, ChatMessage, ChatMessageInput, CompletionInput, DayStats, Achievement, StreakData, WaterIntakeInput, WaterStats, WorkoutHistory, WorkoutHistoryInput, PersonalRecord, PersonalRecordInput, ExerciseDetail, WeightLog, WeightLogInput, FoodLog, FoodLogInput, DailyCalorieSummary, BodyMeasurement, BodyMeasurementInput, CustomWorkout, CustomWorkoutInput } from '@/types';
 
 // Re-export for use in other modules
 export type { DayStats };
@@ -35,6 +35,8 @@ import {
   getFoodLogCollection,
   getBodyMeasurementsCollection,
   buildBodyMeasurementsQuery,
+  getCustomWorkoutsCollection,
+  buildCustomWorkoutsQuery,
   buildChatHistoryQuery,
   buildCompletionsQuery,
   buildWaterQuery,
@@ -739,4 +741,38 @@ export async function fetchBodyMeasurements(uid: string, maxRecords = 30): Promi
   return snap.docs
     .map((d) => ({ id: d.id, ...(d.data() as Omit<BodyMeasurement, 'id'>) }))
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ÖZEL ANTRENMAN ŞABLONLARI (customWorkouts)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Yeni özel antrenman şablonunu Firestore'a kaydeder.
+ * @returns Oluşturulan dokümanın ID'si
+ */
+export async function addCustomWorkout(uid: string, workout: Omit<CustomWorkoutInput, 'createdAt'>): Promise<string> {
+  const col = getCustomWorkoutsCollection(uid);
+  const docRef = await addDoc(col, {
+    ...workout,
+    createdAt: serverTimestamp(),
+  });
+  return docRef.id;
+}
+
+/**
+ * Kullanıcının tüm özel antrenman şablonlarını yeniden eskiye sıralı döndürür.
+ */
+export async function fetchCustomWorkouts(uid: string): Promise<CustomWorkout[]> {
+  const q = buildCustomWorkoutsQuery(uid);
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<CustomWorkout, 'id'>) }));
+}
+
+/**
+ * Belirtilen özel antrenman şablonunu siler.
+ */
+export async function deleteCustomWorkout(uid: string, workoutId: string): Promise<void> {
+  const col = getCustomWorkoutsCollection(uid);
+  await deleteDoc(doc(col, workoutId));
 }

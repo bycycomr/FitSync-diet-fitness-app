@@ -223,3 +223,15 @@ export interface BodyMeasurement {
 
 export type BodyMeasurementInput = Omit<BodyMeasurement, 'id'>;
 
+// ─── Özel Antrenman Şablonları ───────────────────────────────────────────────
+
+export interface CustomWorkout {
+  id: string;
+  name: string;
+  exercises: Exercise[];       // Exercise tipi (WorkoutPlan ile aynı yapı)
+  durationMinutes: number;
+  createdAt: Timestamp | null;
+}
+
+export type CustomWorkoutInput = Omit<CustomWorkout, 'id'>;
+

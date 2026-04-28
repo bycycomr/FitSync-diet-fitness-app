@@ -152,6 +152,21 @@ export const buildBodyMeasurementsQuery = (uid: string, maxRecords = 30) =>
     limit(maxRecords),
   );
 
+/**
+ * Kullanıcıya ait customWorkouts (özel antrenman şablonları) alt koleksiyonuna erişir
+ */
+export const getCustomWorkoutsCollection = (uid: string): CollectionReference =>
+  collection(db, 'users', uid, 'customWorkouts');
+
+/**
+ * Özel antrenman şablonlarını oluşturulma tarihine göre (yeniden eskiye) getiren sorgu
+ */
+export const buildCustomWorkoutsQuery = (uid: string) =>
+  query(
+    getCustomWorkoutsCollection(uid),
+    orderBy('createdAt', 'desc'),
+  );
+
 // ─── Tarih Yardımcıları ───────────────────────────────────────────────────────
 
 /**
