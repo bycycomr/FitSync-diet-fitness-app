@@ -78,7 +78,7 @@ One Cikanlar:
 - [x] Streak & Achievement sistemi (Görev 31)
 
 Riskler / Blokajlar: Hiçbir sorun — tüm mimari ve kod kalitesi iyileştirmeleri tamamlandı  
-Video Linki: 4. Video
+Video Linki: 4. Video https://youtube.com/shorts/4tNsKC3CO6E
 
 ---
 
