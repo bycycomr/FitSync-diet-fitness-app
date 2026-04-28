@@ -9,7 +9,7 @@
  * - Material Design 3 uyumlu, dark mode destekli
  */
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -23,9 +23,11 @@ import {
   ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useTheme, ThemeColors } from '@/hooks/useTheme';
 import { useUserStore } from '@/store/userStore';
 import { addFoodLog, fetchTodayFoodLog, deleteFoodLog } from '@/services/userService';
+import { scanBarcode } from '@/services/foodScanService';
 import type { DailyCalorieSummary, FoodLog } from '@/types';
 
 // ─── Donut Grafik ────────────────────────────────────────────────────────────
@@ -197,6 +199,94 @@ const getRowStyles = (colors: ThemeColors) => StyleSheet.create({
   kcal: { fontSize: 13, fontWeight: '700', color: colors.text },
 });
 
+// ─── Barkod Tarayıcı Modalı ───────────────────────────────────────────────────
+
+interface BarcodeScannerModalProps {
+  visible: boolean;
+  onClose: () => void;
+  onScanned: (barcode: string) => void;
+}
+
+function BarcodeScannerModal({ visible, onClose, onScanned }: BarcodeScannerModalProps) {
+  const { colors } = useTheme();
+  const [permission, requestPermission] = useCameraPermissions();
+  const [scanned, setScanned] = useState(false);
+
+  useEffect(() => {
+    if (visible) setScanned(false);
+  }, [visible]);
+
+  const handleBarcodeScanned = useCallback(({ data }: { data: string }) => {
+    if (scanned) return;
+    setScanned(true);
+    onScanned(data);
+  }, [scanned, onScanned]);
+
+  if (!visible) return null;
+
+  return (
+    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+      <View style={{ flex: 1, backgroundColor: '#000' }}>
+        {!permission?.granted ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16, padding: 32 }}>
+            <Ionicons name="camera-outline" size={48} color={colors.textMuted} />
+            <Text style={{ color: colors.text, fontSize: 16, fontWeight: '600', textAlign: 'center' }}>
+              Barkod taramak için kamera izni gerekli
+            </Text>
+            <TouchableOpacity
+              style={{ backgroundColor: colors.primary, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 }}
+              onPress={requestPermission}
+            >
+              <Text style={{ color: colors.white, fontWeight: '700' }}>İzin Ver</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={onClose}>
+              <Text style={{ color: colors.textSecondary }}>İptal</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <>
+            <CameraView
+              style={{ flex: 1 }}
+              onBarcodeScanned={handleBarcodeScanned}
+              barcodeScannerSettings={{ barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'qr'] }}
+            />
+            {/* Tarama çerçevesi */}
+            <View style={{
+              position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+              alignItems: 'center', justifyContent: 'center',
+            }}>
+              <View style={{
+                width: 260, height: 160, borderRadius: 16,
+                borderWidth: 2, borderColor: colors.primary,
+                shadowColor: colors.primary, shadowOpacity: 0.5,
+                shadowRadius: 8, shadowOffset: { width: 0, height: 0 },
+              }} />
+              <Text style={{
+                color: colors.white, marginTop: 16, fontSize: 14,
+                fontWeight: '600', textShadowColor: '#000',
+                textShadowRadius: 4, textShadowOffset: { width: 0, height: 1 },
+              }}>
+                Barkodu çerçeve içine al
+              </Text>
+            </View>
+            {/* Kapat butonu */}
+            <TouchableOpacity
+              style={{
+                position: 'absolute', top: 52, right: 20,
+                backgroundColor: '#000000AA', borderRadius: 20,
+                padding: 8,
+              }}
+              onPress={onClose}
+            >
+              <Ionicons name="close" size={24} color={colors.white} />
+            </TouchableOpacity>
+          </>
+        )}
+      </View>
+    </Modal>
+  );
+}
+
 // ─── Öğün Ekleme Modalı ───────────────────────────────────────────────────────
 
 interface AddFoodModalProps {
@@ -214,8 +304,31 @@ function AddFoodModal({ visible, onClose, onAdd }: AddFoodModalProps) {
   const [carbs, setCarbs]       = useState('');
   const [fat, setFat]           = useState('');
   const [saving, setSaving]     = useState(false);
+  const [scannerVisible, setScannerVisible] = useState(false);
+  const [scanning, setScanning] = useState(false);
 
   const reset = () => { setName(''); setCalories(''); setProtein(''); setCarbs(''); setFat(''); };
+
+  const handleBarcodeResult = useCallback(async (barcode: string) => {
+    setScannerVisible(false);
+    setScanning(true);
+    try {
+      const food = await scanBarcode(barcode);
+      if (!food) {
+        Alert.alert('Ürün Bulunamadı', 'Bu barkod için besin bilgisi bulunamadı. Manuel olarak girebilirsin.');
+        return;
+      }
+      setName(food.name);
+      setCalories(String(food.calories));
+      if (food.protein > 0) setProtein(String(food.protein));
+      if (food.carbs > 0) setCarbs(String(food.carbs));
+      if (food.fat > 0) setFat(String(food.fat));
+    } catch {
+      Alert.alert('Hata', 'Ürün bilgisi alınamadı.');
+    } finally {
+      setScanning(false);
+    }
+  }, []);
 
   const handleAdd = async () => {
     const kcal = parseInt(calories.replace(',', '.'), 10);
@@ -260,41 +373,70 @@ function AddFoodModal({ visible, onClose, onAdd }: AddFoodModalProps) {
   );
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={s.overlay}>
-        <View style={s.sheet}>
-          <View style={s.sheetHeader}>
-            <Text style={s.sheetTitle}>Öğün Ekle</Text>
-            <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Ionicons name="close" size={22} color={colors.textSecondary} />
+    <>
+      <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+        <View style={s.overlay}>
+          <View style={s.sheet}>
+            <View style={s.sheetHeader}>
+              <Text style={s.sheetTitle}>Öğün Ekle</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                {/* Barkod tarama butonu */}
+                <TouchableOpacity
+                  style={s.scanBtn}
+                  onPress={() => setScannerVisible(true)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  disabled={scanning}
+                >
+                  {scanning
+                    ? <ActivityIndicator size="small" color={colors.primary} />
+                    : <Ionicons name="barcode-outline" size={22} color={colors.primary} />
+                  }
+                </TouchableOpacity>
+                <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Ionicons name="close" size={22} color={colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {scanning && (
+              <View style={s.scanningBanner}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={s.scanningText}>Ürün bilgisi aranıyor...</Text>
+              </View>
+            )}
+
+            <Field label="Öğün Adı"  value={name}     onChange={setName}     placeholder="Yulaf ezmesi, muz..." />
+            <Field label="Kalori"     value={calories} onChange={setCalories} placeholder="350" unit="kcal" />
+
+            <Text style={s.optLabel}>Makrolar (opsiyonel)</Text>
+            <View style={s.macroRow}>
+              <View style={{ flex: 1 }}>
+                <Field label="Protein" value={protein} onChange={setProtein} placeholder="20" unit="g" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Field label="Karbonhidrat" value={carbs} onChange={setCarbs} placeholder="50" unit="g" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Field label="Yağ" value={fat} onChange={setFat} placeholder="10" unit="g" />
+              </View>
+            </View>
+
+            <TouchableOpacity style={s.addBtn} onPress={handleAdd} activeOpacity={0.85} disabled={saving}>
+              {saving
+                ? <ActivityIndicator color={colors.white} size="small" />
+                : <Text style={s.addBtnText}>Ekle</Text>
+              }
             </TouchableOpacity>
           </View>
-
-          <Field label="Öğün Adı"    value={name}     onChange={setName}     placeholder="Yulaf ezmesi, muz..." />
-          <Field label="Kalori"       value={calories} onChange={setCalories} placeholder="350"  unit="kcal" />
-
-          <Text style={s.optLabel}>Makrolar (opsiyonel)</Text>
-          <View style={s.macroRow}>
-            <View style={{ flex: 1 }}>
-              <Field label="Protein" value={protein} onChange={setProtein} placeholder="20" unit="g" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Field label="Karbonhidrat" value={carbs} onChange={setCarbs} placeholder="50" unit="g" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Field label="Yağ" value={fat} onChange={setFat} placeholder="10" unit="g" />
-            </View>
-          </View>
-
-          <TouchableOpacity style={s.addBtn} onPress={handleAdd} activeOpacity={0.85} disabled={saving}>
-            {saving
-              ? <ActivityIndicator color="#fff" size="small" />
-              : <Text style={s.addBtnText}>Ekle</Text>
-            }
-          </TouchableOpacity>
         </View>
-      </View>
-    </Modal>
+      </Modal>
+
+      <BarcodeScannerModal
+        visible={scannerVisible}
+        onClose={() => setScannerVisible(false)}
+        onScanned={handleBarcodeResult}
+      />
+    </>
   );
 }
 
@@ -303,6 +445,9 @@ const getModalStyles = (colors: ThemeColors) => StyleSheet.create({
   sheet: { backgroundColor: colors.cardBackground, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 36, gap: 10 },
   sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
   sheetTitle: { fontSize: 17, fontWeight: '700', color: colors.text },
+  scanBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: colors.primary + '1A', alignItems: 'center', justifyContent: 'center' },
+  scanningBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.primary + '15', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
+  scanningText: { fontSize: 13, color: colors.primary, fontWeight: '600' },
   fieldWrap: { gap: 4 },
   fieldLabel: { fontSize: 12, color: colors.textSecondary, fontWeight: '600' },
   fieldRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.inputBg, borderRadius: 12, paddingHorizontal: 12 },
@@ -311,7 +456,7 @@ const getModalStyles = (colors: ThemeColors) => StyleSheet.create({
   optLabel: { fontSize: 12, color: colors.textMuted, fontWeight: '600', marginTop: 2 },
   macroRow: { flexDirection: 'row', gap: 8 },
   addBtn: { height: 50, borderRadius: 14, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
-  addBtnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
+  addBtnText: { fontSize: 16, fontWeight: '700', color: colors.white },
 });
 
 // ─── Ana Bileşen ──────────────────────────────────────────────────────────────
