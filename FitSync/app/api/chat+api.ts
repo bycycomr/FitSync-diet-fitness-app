@@ -70,6 +70,12 @@ interface WorkoutHistory {
   exercises: ExerciseDetail[];
 }
 
+interface StepData {
+  steps: number;
+  activeCalories: number;
+  stepGoal: number;
+}
+
 interface ChatRequestBody {
   messages: GeminiMessage[];
   userProfile?: UserProfileContext;
@@ -77,6 +83,7 @@ interface ChatRequestBody {
   todayCalorieSummary?: DailyCalorieSummary;
   latestWeight?: WeightLog;
   weeklyWorkoutHistory?: WorkoutHistory[];
+  stepData?: StepData;
 }
 
 // ─── Model ───────────────────────────────────────────────────────────────────
@@ -91,6 +98,7 @@ function buildSystemPrompt(
   todayCalories?: DailyCalorieSummary,
   latestWeight?: WeightLog,
   weeklyWorkouts?: WorkoutHistory[],
+  stepData?: StepData,
 ): string {
   const profileLines: string[] = [];
 
@@ -139,7 +147,13 @@ function buildSystemPrompt(
     workoutSection = `\n\n## Bu Hafta Antrenmanlar\n${summary.map(s => `- ${s}`).join('\n')}`;
   }
 
-  return `Sen FitSync'in yapay zeka asistanısın. Adın FitSync AI.${profileSection}${memorySection}${todaySection}${weightSection}${workoutSection}
+  let stepsSection = '';
+  if (stepData && stepData.steps > 0) {
+    const pct = Math.min(Math.round((stepData.steps / stepData.stepGoal) * 100), 100);
+    stepsSection = `\n\n## Bugünkü Aktivite\n- Adım: ${stepData.steps.toLocaleString('tr-TR')} / ${stepData.stepGoal.toLocaleString('tr-TR')} (hedefin %${pct})\n- Tahmini yakılan kalori: ${stepData.activeCalories} kcal`;
+  }
+
+  return `Sen FitSync'in yapay zeka asistanısın. Adın FitSync AI.${profileSection}${memorySection}${todaySection}${weightSection}${workoutSection}${stepsSection}
 
 ## Görevin
 Kullanıcıya kişiselleştirilmiş beslenme ve fitness tavsiyeleri ver. Yanıtların:
@@ -199,6 +213,7 @@ export async function POST(request: Request): Promise<Response> {
     todayCalorieSummary,
     latestWeight,
     weeklyWorkoutHistory,
+    stepData,
   } = body;
   if (!Array.isArray(messages) || messages.length === 0) {
     return Response.json({ error: 'Mesaj listesi boş olamaz.' }, { status: 400 });
@@ -212,6 +227,7 @@ export async function POST(request: Request): Promise<Response> {
       todayCalorieSummary,
       latestWeight,
       weeklyWorkoutHistory,
+      stepData,
     ),
     messages,
   );

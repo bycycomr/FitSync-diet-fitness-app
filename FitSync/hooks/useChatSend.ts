@@ -6,6 +6,7 @@ import {
   fetchWeightLog,
   fetchWorkoutHistory,
 } from '@/services/userService';
+import { getTodaySteps } from '@/services/healthKitService';
 import {
   sendChatMessageStream,
   type GeminiMessage,
@@ -92,6 +93,14 @@ export function useChatSend({
             if (workoutLogs && workoutLogs.length > 0) richContext.weeklyWorkoutHistory = workoutLogs;
           } catch { /* sessiz başarısızlık */ }
         }
+
+        // Adım verisi (cihaz sensöründen, uid bağımsız)
+        try {
+          const health = await getTodaySteps();
+          if (health.isAvailable && health.steps > 0) {
+            richContext.stepData = { steps: health.steps, activeCalories: health.activeCalories, stepGoal: health.stepGoal };
+          }
+        } catch { /* sessiz başarısızlık */ }
 
         const botText = await sendChatMessageStream(
           geminiHistory.current,

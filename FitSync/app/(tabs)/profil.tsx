@@ -25,6 +25,7 @@ import { StreakCard } from '@/components/StreakCard';
 import { WaterCard } from '@/components/WaterCard';
 import { WeightProgressChart } from '@/components/WeightProgressChart';
 import { BodyMeasurementCard } from '@/components/BodyMeasurementCard';
+import { StepsCard } from '@/components/StepsCard';
 import { WeeklyReportModal } from '@/components/WeeklyReportModal';
 
 // Renkler useTheme() hook'undan alınır
@@ -395,6 +396,9 @@ export default function ProfilScreen() {
 
         {/* Su İçme Takibi */}
         {uid && <WaterCard uid={uid} />}
+
+        {/* Adım Sayacı */}
+        <StepsCard />
 
         {/* Kilo Takip Grafiği */}
         {uid && <WeightProgressChart uid={uid} />}

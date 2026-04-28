@@ -6,6 +6,7 @@
  */
 
 import type { Goal, DayStats, DailyCalorieSummary, WeightLog, WorkoutHistory } from '@/types';
+import type { HealthData } from '@/services/healthKitService';
 
 // ─── Tipler ───────────────────────────────────────────────────────────────────
 
@@ -25,12 +26,13 @@ export interface UserProfileContext {
 }
 
 /**
- * Zengin bağlam: bugünkü yemek günlüğü, son kilo, haftalık antrenmanlar
+ * Zengin bağlam: bugünkü yemek günlüğü, son kilo, haftalık antrenmanlar, adım verisi
  */
 export interface RichContext {
   todayCalorieSummary?: DailyCalorieSummary;
   latestWeight?: WeightLog;
   weeklyWorkoutHistory?: WorkoutHistory[];
+  stepData?: Pick<HealthData, 'steps' | 'activeCalories' | 'stepGoal'>;
 }
 
 // ─── API çağrısı ──────────────────────────────────────────────────────────────
