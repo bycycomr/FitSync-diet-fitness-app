@@ -94,7 +94,7 @@ One Cikanlar:
 - [x] Auth Guard ve onboarding akışı implementasyonu
 
 Riskler / Blokajlar: Hiçbir sorun  
-Video Linki: 5. Video
+Video Linki: [5. Video](https://youtu.be/kwtLzyKBKZU)
 
 ### Hafta 6
 Tarih Araligi: 17 - 23 Nisan 2026  
