@@ -94,7 +94,7 @@ One Cikanlar:
 - [x] Auth Guard ve onboarding akışı implementasyonu
 
 Riskler / Blokajlar: Hiçbir sorun  
-Video Linki: [5. Video](https://youtu.be/kwtLzyKBKZU)
+Video Linki: 5. Video https://youtu.be/kwtLzyKBKZU
 
 ### Hafta 6
 Tarih Araligi: 17 - 23 Nisan 2026  
@@ -106,7 +106,7 @@ One Cikanlar:
 - [x] userService.ts CRUD fonksiyonları ve Firestore entegrasyonu
 
 Riskler / Blokajlar: Hiçbir sorun  
-Video Linki: 6. Video
+Video Linki: 6. Video https://youtu.be/vfeIXBALRXM
 
 ### Hafta 7
 Tarih Araligi: 23 - 29 Nisan 2026  
