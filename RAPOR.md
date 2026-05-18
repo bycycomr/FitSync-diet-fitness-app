@@ -118,7 +118,7 @@ One Cikanlar:
 - [x] Multi-turn konuşma desteği ve konuşma hafızası
 
 Riskler / Blokajlar: Hiçbir sorun  
-Video Linki: 7. Video
+Video Linki: 7. Video https://youtube.com/shorts/tWio8hv039c
 
 ### Hafta 8
 Tarih Araligi: 29 Nisan - 5 Mayis 2026  
