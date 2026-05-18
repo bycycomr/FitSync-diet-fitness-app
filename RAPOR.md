@@ -131,7 +131,7 @@ One Cikanlar:
 - [x] Kişiselleştirilmiş haftalık program önerisi (Görev 24)
 
 Riskler / Blokajlar: Hiçbir sorun  
-Video Linki: 8. Video
+Video Linki: 8. Video https://youtu.be/7uJ9I-56cFs
 
 ### Hafta 9
 Tarih Araligi: 5 - 11 Mayis 2026  
